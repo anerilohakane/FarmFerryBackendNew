@@ -1,0 +1,410 @@
+{
+	"info": {
+		"_postman_id": "a7ba4a7e-4c74-41f0-a9f4-680c23012938",
+		"name": "Aneri FF Testing",
+		"schema": "https://schema.getpostman.com/json/collection/v2.0.0/collection.json",
+		"_exporter_id": "49167739",
+		"_collection_link": "https://shivamkhule-coepd-3140070.postman.co/workspace/CustomerMaxxCRM~74e8e0b3-1a0b-4654-a2ab-64230ce494b6/collection/49167739-a7ba4a7e-4c74-41f0-a9f4-680c23012938?action=share&source=collection_link&creator=49167739"
+	},
+	"item": [
+		{
+			"name": "Login",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"mobile\": \"8010155144\"\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": "http://localhost:3000/api/v1/auth/login"
+			},
+			"response": [
+				{
+					"name": "New Request",
+					"originalRequest": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"mobile\": \"8010155144\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": "http://localhost:3000/api/v1/auth/login"
+					},
+					"status": "OK",
+					"code": 200,
+					"_postman_previewlanguage": "json",
+					"header": [
+						{
+							"key": "vary",
+							"value": "rsc, next-router-state-tree, next-router-prefetch, next-router-segment-prefetch"
+						},
+						{
+							"key": "Content-Type",
+							"value": "application/json",
+							"description": "",
+							"type": "text"
+						},
+						{
+							"key": "Date",
+							"value": "Sat, 27 Dec 2025 07:46:17 GMT"
+						},
+						{
+							"key": "Connection",
+							"value": "keep-alive"
+						},
+						{
+							"key": "Keep-Alive",
+							"value": "timeout=5"
+						},
+						{
+							"key": "Transfer-Encoding",
+							"value": "chunked"
+						}
+					],
+					"cookie": [],
+					"body": "{\n    \"success\": true,\n    \"message\": \"OTP sent for login\",\n    \"data\": null\n}"
+				}
+			]
+		},
+		{
+			"name": "Register",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"mobile\": \"8010155144\"\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": "http://localhost:3000/api/v1/auth/register"
+			},
+			"response": [
+				{
+					"name": "Register",
+					"originalRequest": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"mobile\": \"8010155144\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": "http://localhost:3000/api/v1/auth/register"
+					},
+					"status": "OK",
+					"code": 200,
+					"_postman_previewlanguage": null,
+					"header": [
+						{
+							"key": "vary",
+							"value": "rsc, next-router-state-tree, next-router-prefetch, next-router-segment-prefetch"
+						},
+						{
+							"key": "content-type",
+							"value": "text/plain;charset=UTF-8"
+						},
+						{
+							"key": "Date",
+							"value": "Sat, 27 Dec 2025 08:30:33 GMT"
+						},
+						{
+							"key": "Connection",
+							"value": "keep-alive"
+						},
+						{
+							"key": "Keep-Alive",
+							"value": "timeout=5"
+						},
+						{
+							"key": "Transfer-Encoding",
+							"value": "chunked"
+						}
+					],
+					"cookie": [],
+					"body": "{\"success\":true,\"message\":\"OTP sent successfully\",\"data\":null}"
+				}
+			]
+		},
+		{
+			"name": "Verify OTP",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n  \"mobile\": \"8010155144\",\r\n  \"otp\": \"123456\"\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": "http://localhost:3000/api/v1/auth/verify-otp"
+			},
+			"response": [
+				{
+					"name": "New Request",
+					"originalRequest": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n  \"mobile\": \"8010155144\",\r\n  \"otp\": \"123456\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": "http://localhost:3000/api/v1/auth/verify-otp"
+					},
+					"status": "OK",
+					"code": 200,
+					"_postman_previewlanguage": "json",
+					"header": [
+						{
+							"key": "vary",
+							"value": "rsc, next-router-state-tree, next-router-prefetch, next-router-segment-prefetch"
+						},
+						{
+							"key": "Content-Type",
+							"value": "application/json",
+							"description": "",
+							"type": "text"
+						},
+						{
+							"key": "Date",
+							"value": "Sat, 27 Dec 2025 07:42:56 GMT"
+						},
+						{
+							"key": "Connection",
+							"value": "keep-alive"
+						},
+						{
+							"key": "Keep-Alive",
+							"value": "timeout=5"
+						},
+						{
+							"key": "Transfer-Encoding",
+							"value": "chunked"
+						}
+					],
+					"cookie": [],
+					"body": "{\n    \"success\": true,\n    \"message\": \"Login successful\",\n    \"data\": {\n        \"accessToken\": \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2OTRmOGE4MjA5ZDdiN2NkOWI1ZjU3ZDUiLCJyb2xlIjoiVVNFUiIsImlhdCI6MTc2NjgyMTM3NiwiZXhwIjoxNzY2ODIyMjc2fQ.jOGmMc7jK1dI_ASmZFzz2eA3f0kYc68WHVn1iGPu-v8\",\n        \"refreshToken\": \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2OTRmOGE4MjA5ZDdiN2NkOWI1ZjU3ZDUiLCJpYXQiOjE3NjY4MjEzNzYsImV4cCI6MTc2NzQyNjE3Nn0.seiycTQ-D6dTu0v2WBx3-v3tGom2kG5FAfXl_sa2xK8\",\n        \"user\": {\n            \"_id\": \"694f8a8209d7b7cd9b5f57d5\",\n            \"mobile\": \"8010155144\",\n            \"role\": \"USER\",\n            \"isVerified\": true,\n            \"createdAt\": \"2025-12-27T07:28:02.832Z\",\n            \"updatedAt\": \"2025-12-27T07:28:16.627Z\",\n            \"__v\": 0\n        }\n    }\n}"
+				}
+			]
+		},
+		{
+			"name": "Refresh Token",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n  \"refreshToken\": \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2OTRmOGE4MjA5ZDdiN2NkOWI1ZjU3ZDUiLCJpYXQiOjE3NjY4MjEzNzYsImV4cCI6MTc2NzQyNjE3Nn0.seiycTQ-D6dTu0v2WBx3-v3tGom2kG5FAfXl_sa2xK8\"\r\n}"
+				},
+				"url": "http://localhost:3000/api/v1/auth/refresh-token"
+			},
+			"response": [
+				{
+					"name": "New Request",
+					"originalRequest": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n  \"refreshToken\": \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2OTRmOGE4MjA5ZDdiN2NkOWI1ZjU3ZDUiLCJpYXQiOjE3NjY4MjEzNzYsImV4cCI6MTc2NzQyNjE3Nn0.seiycTQ-D6dTu0v2WBx3-v3tGom2kG5FAfXl_sa2xK8\"\r\n}"
+						},
+						"url": "http://localhost:3000/api/v1/auth/refresh-token"
+					},
+					"status": "OK",
+					"code": 200,
+					"_postman_previewlanguage": "json",
+					"header": [
+						{
+							"key": "vary",
+							"value": "rsc, next-router-state-tree, next-router-prefetch, next-router-segment-prefetch"
+						},
+						{
+							"key": "Content-Type",
+							"value": "application/json",
+							"description": "",
+							"type": "text"
+						},
+						{
+							"key": "Date",
+							"value": "Sat, 27 Dec 2025 07:43:06 GMT"
+						},
+						{
+							"key": "Connection",
+							"value": "keep-alive"
+						},
+						{
+							"key": "Keep-Alive",
+							"value": "timeout=5"
+						},
+						{
+							"key": "Transfer-Encoding",
+							"value": "chunked"
+						}
+					],
+					"cookie": [
+						{
+							"expires": "Invalid Date",
+							"domain": "",
+							"path": ""
+						}
+					],
+					"body": "{\n    \"success\": true,\n    \"message\": \"Token refreshed\",\n    \"data\": {\n        \"accessToken\": \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2OTRmOGE4MjA5ZDdiN2NkOWI1ZjU3ZDUiLCJyb2xlIjoiVVNFUiIsImlhdCI6MTc2NjgyMTM4NiwiZXhwIjoxNzY2ODIyMjg2fQ.YX39T0sK9UkpQEVOFTjspuIIVGAObrIAsmu2Nf-wqBc\"\n    }\n}"
+				}
+			]
+		},
+		{
+			"name": "Logout",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n  \"refreshToken\": \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2OTRmOGE4MjA5ZDdiN2NkOWI1ZjU3ZDUiLCJpYXQiOjE3NjY4MjA0OTYsImV4cCI6MTc2NzQyNTI5Nn0.jtLgv158HVOo9HNW6o0G-Jyl-7fTsh46yc7VEtEkEdc\"\r\n}"
+				},
+				"url": "http://localhost:3000/api/v1/auth/logout"
+			},
+			"response": [
+				{
+					"name": "Logout",
+					"originalRequest": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n  \"refreshToken\": \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2OTRmOGE4MjA5ZDdiN2NkOWI1ZjU3ZDUiLCJpYXQiOjE3NjY4MjA0OTYsImV4cCI6MTc2NzQyNTI5Nn0.jtLgv158HVOo9HNW6o0G-Jyl-7fTsh46yc7VEtEkEdc\"\r\n}"
+						},
+						"url": "http://localhost:3000/api/v1/auth/logout"
+					},
+					"status": "OK",
+					"code": 200,
+					"_postman_previewlanguage": null,
+					"header": [
+						{
+							"key": "vary",
+							"value": "rsc, next-router-state-tree, next-router-prefetch, next-router-segment-prefetch"
+						},
+						{
+							"key": "content-type",
+							"value": "text/plain;charset=UTF-8"
+						},
+						{
+							"key": "Date",
+							"value": "Sat, 27 Dec 2025 08:31:09 GMT"
+						},
+						{
+							"key": "Connection",
+							"value": "keep-alive"
+						},
+						{
+							"key": "Keep-Alive",
+							"value": "timeout=5"
+						},
+						{
+							"key": "Transfer-Encoding",
+							"value": "chunked"
+						}
+					],
+					"cookie": [],
+					"body": "{\"success\":true,\"message\":\"Logged out successfully\",\"data\":null}"
+				}
+			]
+		},
+		{
+			"name": "Get Profile Data",
+			"request": {
+				"auth": {
+					"type": "noauth"
+				},
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{accessToken}}",
+						"type": "text"
+					}
+				],
+				"url": "http://localhost:3000/api/v1/auth/profile"
+			},
+			"response": [
+				{
+					"name": "Get Profile Data",
+					"originalRequest": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{accessToken}}",
+								"type": "text"
+							}
+						],
+						"url": "http://localhost:3000/api/v1/auth/me"
+					},
+					"status": "OK",
+					"code": 200,
+					"_postman_previewlanguage": "json",
+					"header": [
+						{
+							"key": "vary",
+							"value": "rsc, next-router-state-tree, next-router-prefetch, next-router-segment-prefetch"
+						},
+						{
+							"key": "Content-Type",
+							"value": "application/json",
+							"description": "",
+							"type": "text"
+						},
+						{
+							"key": "Date",
+							"value": "Sat, 27 Dec 2025 07:47:43 GMT"
+						},
+						{
+							"key": "Connection",
+							"value": "keep-alive"
+						},
+						{
+							"key": "Keep-Alive",
+							"value": "timeout=5"
+						},
+						{
+							"key": "Transfer-Encoding",
+							"value": "chunked"
+						}
+					],
+					"cookie": [
+						{
+							"expires": "Invalid Date",
+							"domain": "",
+							"path": ""
+						}
+					],
+					"body": "{\n    \"success\": true,\n    \"message\": \"User profile fetched\",\n    \"data\": {\n        \"_id\": \"694f8a8209d7b7cd9b5f57d5\",\n        \"mobile\": \"8010155144\",\n        \"role\": \"USER\",\n        \"isVerified\": true,\n        \"createdAt\": \"2025-12-27T07:28:02.832Z\",\n        \"updatedAt\": \"2025-12-27T07:28:16.627Z\"\n    }\n}"
+				}
+			]
+		}
+	]
+}
