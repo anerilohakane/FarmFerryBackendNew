@@ -1,5 +1,5 @@
 import jwt from "jsonwebtoken";
-import User from "@/models/User";
+import User from "@/models/Customer";
 import connectDB from "@/lib/connectDB";
 
 export const authMiddleware = async (req) => {

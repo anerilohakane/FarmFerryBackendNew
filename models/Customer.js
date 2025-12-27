@@ -1,6 +1,6 @@
 import mongoose from "mongoose";
 
-const userSchema = new mongoose.Schema(
+const customerSchema = new mongoose.Schema(
   {
     mobile: {
       type: String,
@@ -10,8 +10,8 @@ const userSchema = new mongoose.Schema(
     name: String,
     role: {
       type: String,
-      enum: ["user", "admin", "delivery", "supplier"],
-      default: "user",
+      enum: ["customer", "admin", "delivery", "supplier"],
+      default: "customer",
     },
     isVerified: {
       type: Boolean,
@@ -21,4 +21,4 @@ const userSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-export default mongoose.models.User || mongoose.model("User", userSchema);
+export default mongoose.models.Customer || mongoose.model("Customer", customerSchema);
