@@ -1,5 +1,5 @@
 import connectDB from "@/lib/connectDB";
-import User from "@/models/Customer";
+import Customer from "@/models/Customer";
 import { generateOTP } from "@/services/otp.service";
 import { apiResponse } from "@/utils/apiResponse";
 import { handleCors, corsHandler } from "@/utils/corsHandler";
@@ -13,9 +13,9 @@ export async function POST(req) {
 
   const { mobile, name } = await req.json();
 
-  let user = await User.findOne({ mobile });
-  if (!user) {
-    user = await User.create({ mobile, name });
+  let customer = await Customer.findOne({ mobile });
+  if (!customer) {
+    customer = await Customer.create({ mobile, name });
   }
 
   const otp = generateOTP();

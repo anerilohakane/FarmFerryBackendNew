@@ -208,7 +208,7 @@
 						}
 					],
 					"cookie": [],
-					"body": "{\n    \"success\": true,\n    \"message\": \"Login successful\",\n    \"data\": {\n        \"accessToken\": \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2OTRmOGE4MjA5ZDdiN2NkOWI1ZjU3ZDUiLCJyb2xlIjoiVVNFUiIsImlhdCI6MTc2NjgyMTM3NiwiZXhwIjoxNzY2ODIyMjc2fQ.jOGmMc7jK1dI_ASmZFzz2eA3f0kYc68WHVn1iGPu-v8\",\n        \"refreshToken\": \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2OTRmOGE4MjA5ZDdiN2NkOWI1ZjU3ZDUiLCJpYXQiOjE3NjY4MjEzNzYsImV4cCI6MTc2NzQyNjE3Nn0.seiycTQ-D6dTu0v2WBx3-v3tGom2kG5FAfXl_sa2xK8\",\n        \"user\": {\n            \"_id\": \"694f8a8209d7b7cd9b5f57d5\",\n            \"mobile\": \"8010155144\",\n            \"role\": \"USER\",\n            \"isVerified\": true,\n            \"createdAt\": \"2025-12-27T07:28:02.832Z\",\n            \"updatedAt\": \"2025-12-27T07:28:16.627Z\",\n            \"__v\": 0\n        }\n    }\n}"
+					"body": "{\n    \"success\": true,\n    \"message\": \"Login successful\",\n    \"data\": {\n        \"accessToken\": \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2OTRmOGE4MjA5ZDdiN2NkOWI1ZjU3ZDUiLCJyb2xlIjoiVVNFUiIsImlhdCI6MTc2NjgyMTM3NiwiZXhwIjoxNzY2ODIyMjc2fQ.jOGmMc7jK1dI_ASmZFzz2eA3f0kYc68WHVn1iGPu-v8\",\n        \"refreshToken\": \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2OTRmOGE4MjA5ZDdiN2NkOWI1ZjU3ZDUiLCJpYXQiOjE3NjY4MjEzNzYsImV4cCI6MTc2NzQyNjE3Nn0.seiycTQ-D6dTu0v2WBx3-v3tGom2kG5FAfXl_sa2xK8\",\n        \"customer\": {\n            \"_id\": \"694f8a8209d7b7cd9b5f57d5\",\n            \"mobile\": \"8010155144\",\n            \"role\": \"USER\",\n            \"isVerified\": true,\n            \"createdAt\": \"2025-12-27T07:28:02.832Z\",\n            \"updatedAt\": \"2025-12-27T07:28:16.627Z\",\n            \"__v\": 0\n        }\n    }\n}"
 				}
 			]
 		},
@@ -402,7 +402,7 @@
 							"path": ""
 						}
 					],
-					"body": "{\n    \"success\": true,\n    \"message\": \"User profile fetched\",\n    \"data\": {\n        \"_id\": \"694f8a8209d7b7cd9b5f57d5\",\n        \"mobile\": \"8010155144\",\n        \"role\": \"USER\",\n        \"isVerified\": true,\n        \"createdAt\": \"2025-12-27T07:28:02.832Z\",\n        \"updatedAt\": \"2025-12-27T07:28:16.627Z\"\n    }\n}"
+					"body": "{\n    \"success\": true,\n    \"message\": \"Customer profile fetched\",\n    \"data\": {\n        \"_id\": \"694f8a8209d7b7cd9b5f57d5\",\n        \"mobile\": \"8010155144\",\n        \"role\": \"USER\",\n        \"isVerified\": true,\n        \"createdAt\": \"2025-12-27T07:28:02.832Z\",\n        \"updatedAt\": \"2025-12-27T07:28:16.627Z\"\n    }\n}"
 				}
 			]
 		}

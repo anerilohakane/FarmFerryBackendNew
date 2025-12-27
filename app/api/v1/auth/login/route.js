@@ -1,5 +1,5 @@
 import connectDB from "@/lib/connectDB";
-import User from "@/models/Customer";
+import Customer from "@/models/Customer";
 import { generateOTP } from "@/services/otp.service";
 import { apiResponse } from "@/utils/apiResponse";
 import { handleCors, corsHandler } from "@/utils/corsHandler";
@@ -13,9 +13,9 @@ export async function POST(req) {
 
   const { mobile } = await req.json();
 
-  const user = await User.findOne({ mobile });
-  if (!user) {
-    return apiResponse(404, false, "User not found");
+  const customer = await Customer.findOne({ mobile });
+  if (!customer) {
+    return apiResponse(404, false, "Customer not found");
   }
 
   console.log("Dummy OTP: 123456");

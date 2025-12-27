@@ -1,5 +1,5 @@
 import jwt from "jsonwebtoken";
-import User from "@/models/Customer";
+import Customer from "@/models/Customer";
 import connectDB from "@/lib/connectDB";
 
 export const authMiddleware = async (req) => {
@@ -19,13 +19,13 @@ export const authMiddleware = async (req) => {
       process.env.JWT_ACCESS_SECRET
     );
 
-    const user = await User.findById(decoded.userId).select("-__v");
+    const customer = await Customer.findById(decoded.userId).select("-__v");
 
-    if (!user) {
-      return { error: "User not found" };
+    if (!customer) {
+      return { error: "Customer not found" };
     }
 
-    return { user };
+    return { customer };
   } catch (error) {
     return { error: "Invalid or expired token" };
   }

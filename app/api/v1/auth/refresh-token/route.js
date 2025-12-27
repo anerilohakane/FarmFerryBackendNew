@@ -1,7 +1,7 @@
 import connectDB from "@/lib/connectDB";
 import jwt from "jsonwebtoken";
 import Session from "@/models/Session";
-import User from "@/models/Customer";
+import Customer from "@/models/Customer";
 import { generateAccessToken } from "@/services/token.service";
 import { apiResponse } from "@/utils/apiResponse";
 import { handleCors, corsHandler } from "@/utils/corsHandler";
@@ -23,8 +23,8 @@ export async function POST(req) {
     process.env.JWT_REFRESH_SECRET
   );
 
-  const user = await User.findById(payload.userId);
-  const newAccessToken = generateAccessToken(user);
+  const customer = await Customer.findById(payload.userId);
+  const newAccessToken = generateAccessToken(customer);
 
   return apiResponse(200, true, "Token refreshed", {
     accessToken: newAccessToken,

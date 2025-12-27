@@ -1,5 +1,5 @@
 import connectDB from "@/lib/connectDB";
-import User from "@/models/Customer";
+import Customer from "@/models/Customer";
 import Session from "@/models/Session";
 import { verifyOTP } from "@/services/otp.service";
 import {
@@ -22,15 +22,15 @@ export async function POST(req) {
     return apiResponse(401, false, "Invalid OTP");
   }
 
-  const user = await User.findOne({ mobile });
-  user.isVerified = true;
-  await user.save();
+  const customer = await Customer.findOne({ mobile });
+  customer.isVerified = true;
+  await customer.save();
 
-  const accessToken = generateAccessToken(user);
-  const refreshToken = generateRefreshToken(user);
+  const accessToken = generateAccessToken(customer);
+  const refreshToken = generateRefreshToken(customer);
 
   await Session.create({
-    userId: user._id,
+    userId: customer._id,
     refreshToken,
     expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
   });
@@ -38,7 +38,7 @@ export async function POST(req) {
   return apiResponse(200, true, "Login successful", {
     accessToken,
     refreshToken,
-    user,
+    customer,
   });
 }
 

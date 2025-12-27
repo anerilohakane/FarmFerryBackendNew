@@ -7,13 +7,13 @@ export async function GET(req) {
   const corsResponse = await handleCors(req);
   if (corsResponse) return corsResponse;
   
-  const { user, error } = await authMiddleware(req);
+  const { customer, error } = await authMiddleware(req);
 
   if (error) {
     return apiResponse(401, false, error);
   }
 
-  return apiResponse(200, true, "User profile fetched", user);
+  return apiResponse(200, true, "Customer profile fetched", customer);
 }
 
 // Add OPTIONS method to handle preflight requests
