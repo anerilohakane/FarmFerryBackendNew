@@ -1,32 +1,171 @@
 import jwt from "jsonwebtoken";
-import Customer from "@/models/Customer";
+import Customer from "@/models/customer.model";
+import Supplier from "@/models/supplier.model";
+import Admin from "@/models/admin.model";
+import SuperAdmin from "@/models/superadmin.model";
 import connectDB from "@/lib/connectDB";
 
-export const authMiddleware = async (req) => {
+/**
+ * Verify JWT token and return user object
+ */
+export const verifyJWT = async (token) => {
   try {
+    if (!token) {
+      return { error: "Unauthorized - No token provided", statusCode: 401 };
+    }
+
+    // Verify token
+    const decodedToken = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET || 'fallback_access_token_secret');
+
+    // Connect to database
     await connectDB();
 
-    const authHeader = req.headers.get("authorization");
-
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      return { error: "Authorization token missing" };
+    // Find user based on token info
+    let user;
+    if (decodedToken.role === "superadmin") {
+      user = await SuperAdmin.findById(decodedToken.id).select("-password");
+    } else if (decodedToken.role === "admin") {
+      user = await Admin.findById(decodedToken.id).select("-password");
+    } else if (decodedToken.role === "supplier") {
+      user = await Supplier.findById(decodedToken.id).select("-password");
+    } else if (decodedToken.role === "deliveryAssociate") {
+      const DeliveryAssociate = (await import("@/models/deliveryAssociate.model")).default;
+      user = await DeliveryAssociate.findById(decodedToken.id).select("-password -passwordResetToken -passwordResetExpires");
+    } else {
+      user = await Customer.findById(decodedToken.id).select("-password");
     }
 
-    const token = authHeader.split(" ")[1];
-
-    const decoded = jwt.verify(
-      token,
-      process.env.JWT_ACCESS_SECRET
-    );
-
-    const customer = await Customer.findById(decoded.userId).select("-__v");
-
-    if (!customer) {
-      return { error: "Customer not found" };
+    if (!user) {
+      return { error: "Invalid token - User not found", statusCode: 401 };
     }
 
-    return { customer };
+    return { user, role: decodedToken.role };
   } catch (error) {
-    return { error: "Invalid or expired token" };
+    if (error.name === "JsonWebTokenError") {
+      return { error: "Invalid token", statusCode: 401 };
+    }
+    if (error.name === "TokenExpiredError") {
+      return { error: "Token expired", statusCode: 401 };
+    }
+    return { error: error.message || "Invalid token", statusCode: 401 };
   }
+};
+
+/**
+ * Verify token for Next.js API routes
+ * Use this in your API route handlers
+ */
+export const authenticate = async (request) => {
+  try {
+    // Get token from authorization header or cookies
+    const authHeader = request.headers.get('authorization');
+    const token = authHeader?.replace('Bearer ', '') || null;
+
+    const result = await verifyJWT(token);
+    
+    if (result.error) {
+      return { 
+        success: false, 
+        error: result.error, 
+        statusCode: result.statusCode 
+      };
+    }
+    
+    return { 
+      success: true, 
+      user: result.user, 
+      role: result.role 
+    };
+  } catch (error) {
+    console.error("Authentication error:", error);
+    return { 
+      success: false, 
+      error: "Authentication failed", 
+      statusCode: 401 
+    };
+  }
+};
+
+/**
+ * Verify token for supplier-specific routes
+ */
+export const authenticateSupplier = async (request) => {
+  const authResult = await authenticate(request);
+  
+  if (!authResult.success) {
+    return authResult;
+  }
+  
+  if (authResult.role !== 'supplier') {
+    return {
+      success: false,
+      error: "Access denied. Supplier role required.",
+      statusCode: 403
+    };
+  }
+  
+  return authResult;
+};
+
+/**
+ * Check if user has required role
+ * @param {string[]} allowedRoles - Allowed roles
+ */
+export const requireRole = (allowedRoles) => {
+  return async (request) => {
+    const authResult = await authenticate(request);
+    
+    if (!authResult.success) {
+      return authResult;
+    }
+    
+    if (!allowedRoles.includes(authResult.role)) {
+      return {
+        success: false,
+        error: `Role: ${authResult.role} is not allowed to access this resource`,
+        statusCode: 403
+      };
+    }
+    
+    return authResult;
+  };
+};
+
+/**
+ * Check if supplier is verified
+ */
+export const requireVerifiedSupplier = async (request) => {
+  const authResult = await authenticateSupplier(request);
+  
+  if (!authResult.success) {
+    return authResult;
+  }
+  
+  if (authResult.user.status !== "approved") {
+    return {
+      success: false,
+      error: "Your account is not verified yet. Please wait for admin approval.",
+      statusCode: 403
+    };
+  }
+  
+  return authResult;
+};
+
+/**
+ * Simplified supplier authentication helper
+ * Use this directly in your supplier API routes
+ */
+export const authenticateSupplierToken = async (token) => {
+  const result = await verifyJWT(token);
+  
+  if (result.error) {
+    return null;
+  }
+  
+  if (result.role !== 'supplier') {
+    return null;
+  }
+  
+  return result.user;
 };
