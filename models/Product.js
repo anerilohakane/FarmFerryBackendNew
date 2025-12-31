@@ -1,195 +1,120 @@
 import mongoose from "mongoose";
+import { generateSKU } from "@/utils/generateSKU";
 
-const productSchema = new mongoose.Schema(
+const { Schema } = mongoose;
+
+/* ---------------- Sub Schemas ---------------- */
+
+const imageSubSchema = new Schema(
   {
-    supplierId: { 
-      type: mongoose.Schema.Types.ObjectId, 
-      required: [true, "Supplier ID is required"], 
-      ref: "Supplier" 
-    },
-    categoryId: { 
-      type: mongoose.Schema.Types.ObjectId, 
-      required: [true, "Category ID is required"], 
-      ref: "Category" 
-    },
-    name: { 
-      type: String, 
-      required: [true, "Product name is required"], 
-      trim: true,
-      index: true 
-    },
-    description: { 
-      type: String,
-      trim: true 
-    },
-    price: { 
-      type: Number, 
-      required: [true, "Price is required"], 
-      min: [0, "Price cannot be negative"] 
-    },
-    gst: {
-      type: Number,
-      default: 0,
-      min: [0, "GST cannot be negative"],
-      max: [100, "GST cannot exceed 100%"]
-    },
-    stockQuantity: { 
-      type: Number, 
-      required: [true, "Stock quantity is required"], 
-      min: [0, "Stock quantity cannot be negative"] 
-    },
-    unit: { 
-      type: String, 
-      enum: ["kg", "g", "liters", "ml", "pcs", "box", "dozen"], 
-      default: "kg" 
-    },
-    images: {
-      type: [
-        {
-          url: { type: String, required: true },
-          publicId: { type: String, required: true },
-          isMain: { type: Boolean, default: false }
-        }
-      ],
-      validate: {
-        validator: function(value) {
-          return Array.isArray(value) && value.length > 0;
-        },
-        message: 'At least one product image is required'
-      },
-      required: [true, 'Product images are required']
-    },
-    
-    isActive: { 
-      type: Boolean, 
-      default: true 
-    },
-    discountedPrice: { 
-      type: Number, 
-      min: [0, "Discounted price cannot be negative"],
-      validate: {
-        validator: function(value) {
-          return value <= this.price;
-        },
-        message: "Discounted price must be less than or equal to regular price"
-      }
-    },
-    offerPercentage: {
-      type: Number,
-      default: 0,
-      min: [0, "Offer percentage cannot be negative"],
-      max: [100, "Offer percentage cannot exceed 100"]
-    },
-    offerStartDate: {
-      type: Date
-    },
-    offerEndDate: {
-      type: Date
-    },
-    hasActiveOffer: {
-      type: Boolean,
-      default: false
-    },
-    
-    // Variations
-    variations: [
-      {
-        name: { type: String }, // e.g., "Size", "Weight", "Color"
-        value: { type: String }, // e.g., "500g", "1kg", "Red"
-        additionalPrice: { type: Number, default: 0 },
-        stockQuantity: { type: Number, default: 0 }
-      }
-    ],
-    
-    // SKU and Barcode
-    sku: { 
-      type: String, 
-      unique: true,
-      sparse: true
-    },
-    barcode: { 
-      type: String, 
-      unique: true,
-      sparse: true
-    },
-    
-    // Expiry and Freshness
-    expiryDate: { 
-      type: Date 
-    },
-    manufactureDate: { 
-      type: Date 
-    },
-    
-    // Ratings & Reviews
-    averageRating: { 
-      type: Number, 
-      default: 0, 
-      min: 0, 
-      max: 5 
-    },
-    totalReviews: { 
-      type: Number, 
-      default: 0 
-    },
-    
-    // Featured & Trending
-    isFeatured: { 
-      type: Boolean, 
-      default: false 
-    },
-    isTrending: { 
-      type: Boolean, 
-      default: false 
-    },
-    
-    // Discount Period
-    discountStartDate: { 
-      type: Date 
-    },
-    discountEndDate: { 
-      type: Date 
-    }
+    url: { type: String, required: true },
+    publicId: { type: String, required: true },
+    isMain: { type: Boolean, default: false },
   },
-  {
-    timestamps: true,
-  }
+  { _id: false }
 );
 
-// Middleware to auto-calculate offer percentage and check offer status before saving
-productSchema.pre("save", function (next) {
-  // Auto-calculate offer percentage if not manually set
-  if (this.price > 0 && this.discountedPrice && !this.isModified('offerPercentage')) {
-    this.offerPercentage = ((this.price - this.discountedPrice) / this.price) * 100;
+const variationSubSchema = new Schema(
+  {
+    name: String,
+    value: String,
+    additionalPrice: { type: Number, default: 0 },
+    stockQuantity: { type: Number, default: 0 },
+    sku: { type: String, default: null },
+  },
+  { _id: false }
+);
+
+/* ---------------- Product Schema ---------------- */
+
+const productSchema = new Schema(
+  {
+    supplierId: { type: Schema.Types.ObjectId, ref: "Supplier", required: true },
+    categoryId: { type: Schema.Types.ObjectId, ref: "Category", required: true },
+
+    name: { type: String, required: true, trim: true, index: true },
+    description: String,
+
+    price: { type: Number, required: true, min: 0 },
+    discountedPrice: { type: Number, min: 0 },
+
+    gst: { type: Number, default: 0, min: 0, max: 100 },
+    stockQuantity: { type: Number, required: true, min: 0 },
+
+    unit: {
+      type: String,
+      enum: ["kg", "g", "liters", "ml", "pcs", "box", "dozen"],
+      default: "kg",
+    },
+
+    images: {
+      type: [imageSubSchema],
+      required: true,
+      validate: v => Array.isArray(v) && v.length > 0,
+    },
+
+    variations: [variationSubSchema],
+
+    sku: { type: String, unique: true, sparse: true },
+    barcode: { type: String, unique: true, sparse: true },
+
+    offerPercentage: { type: Number, default: 0 },
+    offerStartDate: Date,
+    offerEndDate: Date,
+    hasActiveOffer: { type: Boolean, default: false },
+
+    isActive: { type: Boolean, default: true },
+  },
+  { timestamps: true }
+);
+
+/* ---------------- PRE SAVE (ASYNC ONLY) ---------------- */
+
+productSchema.pre("save", async function () {
+  // ---------- Main SKU ----------
+  if (!this.sku) {
+    const prefix =
+      this.name
+        ?.replace(/[^A-Z0-9]/gi, "")
+        .slice(0, 3)
+        .toUpperCase() || "PRD";
+
+    this.sku = generateSKU(prefix);
   }
-  
-  // Check if offer is currently active
+
+  // ---------- Variation SKUs ----------
+  if (Array.isArray(this.variations)) {
+    this.variations.forEach((v, i) => {
+      if (v && !v.sku) {
+        const root = this.sku.split("-")[0];
+        v.sku = generateSKU(`${root}${i + 1}`);
+      }
+    });
+  }
+
+  // ---------- Offer percentage ----------
+  if (
+    this.price > 0 &&
+    this.discountedPrice != null &&
+    !this.isModified("offerPercentage")
+  ) {
+    this.offerPercentage =
+      ((this.price - this.discountedPrice) / this.price) * 100;
+  }
+
+  // ---------- Active offer ----------
   if (this.offerStartDate && this.offerEndDate) {
     const now = new Date();
-    this.hasActiveOffer = now >= this.offerStartDate && now <= this.offerEndDate;
-  } else if (this.offerPercentage > 0) {
-    this.hasActiveOffer = true;
+    this.hasActiveOffer =
+      now >= this.offerStartDate && now <= this.offerEndDate;
   } else {
-    this.hasActiveOffer = false;
+    this.hasActiveOffer = this.offerPercentage > 0;
   }
-  
-  next();
 });
 
-// Virtual for checking if product is in stock
-productSchema.virtual('inStock').get(function() {
-  return this.stockQuantity > 0;
-});
+/* ---------------- Model Export ---------------- */
 
-// Method to check if discount is active
-productSchema.methods.isDiscountActive = function() {
-  const now = new Date();
-  if (!this.discountStartDate || !this.discountEndDate) {
-    return !!this.discountedPrice;
-  }
-  return now >= this.discountStartDate && now <= this.discountEndDate;
-};
-
-const Product = mongoose.model("Product", productSchema);
+const Product =
+  mongoose.models.Product || mongoose.model("Product", productSchema);
 
 export default Product;

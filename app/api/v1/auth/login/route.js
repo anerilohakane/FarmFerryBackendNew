@@ -1,33 +1,45 @@
 import connectDB from "@/lib/connectDB";
 import Customer from "@/models/Customer";
-import { generateOTP } from "@/services/otp.service";
-import { apiResponse } from "@/utils/apiResponse";
 import { handleCors, corsHandler } from "@/utils/corsHandler";
 
+const STATIC_OTP = "123456";
+
 export async function POST(req) {
-  // Handle CORS preflight
   const corsResponse = await handleCors(req);
   if (corsResponse) return corsResponse;
-  
+
   await connectDB();
 
   const { mobile } = await req.json();
 
-  const customer = await Customer.findOne({ mobile });
-  if (!customer) {
-    return apiResponse(404, false, "Customer not found");
+  if (!mobile) {
+    return new Response(
+      JSON.stringify({ success: false, message: "Mobile is required" }),
+      { status: 400 }
+    );
   }
 
-  console.log("Dummy OTP: 123456");
+  const customer = await Customer.findOne({ phone: mobile });
 
-  return apiResponse(200, true, "OTP sent for login");
+  if (!customer) {
+    return new Response(
+      JSON.stringify({ success: false, message: "Customer not found" }),
+      { status: 404 }
+    );
+  }
+
+  customer.phoneOTP = STATIC_OTP;
+  customer.phoneOTPExpires = Date.now() + 10 * 60 * 1000;
+  await customer.save({ validateBeforeSave: false });
+
+  console.log(`OTP for ${mobile}: ${STATIC_OTP}`);
+
+  return new Response(
+    JSON.stringify({ success: true, message: "OTP sent successfully" }),
+    { status: 200 }
+  );
 }
 
-// Add OPTIONS method to handle preflight requests
 export async function OPTIONS(req) {
-  const headers = corsHandler(req);
-  return new Response(null, {
-    status: 200,
-    headers,
-  });
+  return new Response(null, { status: 200, headers: corsHandler(req) });
 }

@@ -1,30 +1,52 @@
 import connectDB from "@/lib/connectDB";
 import Customer from "@/models/Customer";
 import Session from "@/models/Session";
-import { verifyOTP } from "@/services/otp.service";
 import {
   generateAccessToken,
   generateRefreshToken,
 } from "@/services/token.service";
-import { apiResponse } from "@/utils/apiResponse";
 import { handleCors, corsHandler } from "@/utils/corsHandler";
 
 export async function POST(req) {
-  // Handle CORS preflight
   const corsResponse = await handleCors(req);
   if (corsResponse) return corsResponse;
-  
+
   await connectDB();
 
   const { mobile, otp } = await req.json();
 
-  if (!verifyOTP(otp)) {
-    return apiResponse(401, false, "Invalid OTP");
+  if (!mobile || !otp) {
+    return new Response(
+      JSON.stringify({ success: false, message: "Mobile and OTP required" }),
+      { status: 400 }
+    );
   }
 
-  const customer = await Customer.findOne({ mobile });
-  customer.isVerified = true;
-  await customer.save();
+  const customer = await Customer.findOne({ phone: mobile });
+
+  if (!customer) {
+    return new Response(
+      JSON.stringify({ success: false, message: "Customer not found" }),
+      { status: 404 }
+    );
+  }
+
+  if (
+    customer.phoneOTP !== otp ||
+    customer.phoneOTPExpires < Date.now()
+  ) {
+    return new Response(
+      JSON.stringify({ success: false, message: "Invalid or expired OTP" }),
+      { status: 401 }
+    );
+  }
+
+  customer.isPhoneVerified = true;
+  customer.phoneOTP = undefined;
+  customer.phoneOTPExpires = undefined;
+  customer.lastLogin = new Date();
+
+  await customer.save({ validateBeforeSave: false });
 
   const accessToken = generateAccessToken(customer);
   const refreshToken = generateRefreshToken(customer);
@@ -35,18 +57,16 @@ export async function POST(req) {
     expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
   });
 
-  return apiResponse(200, true, "Login successful", {
-    accessToken,
-    refreshToken,
-    customer,
-  });
+  return new Response(
+    JSON.stringify({
+      success: true,
+      message: "Login successful",
+      data: { accessToken, refreshToken, customer },
+    }),
+    { status: 200 }
+  );
 }
 
-// Add OPTIONS method to handle preflight requests
 export async function OPTIONS(req) {
-  const headers = corsHandler(req);
-  return new Response(null, {
-    status: 200,
-    headers,
-  });
+  return new Response(null, { status: 200, headers: corsHandler(req) });
 }
