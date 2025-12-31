@@ -1,10 +1,9 @@
 import jwt from "jsonwebtoken";
-import Customer from "@/models/customer.model";
-import Supplier from "@/models/supplier.model";
-import Admin from "@/models/admin.model";
-import SuperAdmin from "@/models/superadmin.model";
-import connectDB from "@/lib/connectDB";
-
+import Customer from "@/models/Customer";
+import Supplier from "@/models/Supplier";
+import SuperAdmin from "@/models/SuperAdmin";
+import Admin from "@/models/Admin";
+import dbConnect from "@/lib/connectDB";
 /**
  * Verify JWT token and return user object
  */
