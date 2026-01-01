@@ -1,4 +1,6 @@
-import mongoose from "mongoose";
+ import mongoose from "mongoose";
+import bcrypt from "bcrypt";
+import jwt from "jsonwebtoken";
 
 const supplierSchema = new mongoose.Schema(
   {
@@ -153,3 +155,76 @@ if (mongoose.models.Supplier) {
 const Supplier = mongoose.model("Supplier", supplierSchema);
 
 export default Supplier;
+
+// import mongoose from "mongoose";
+// import bcrypt from "bcrypt";
+// import jwt from "jsonwebtoken";
+
+// const supplierSchema = new mongoose.Schema(
+//   {
+//     businessName: { type: String, trim: true },
+//     ownerName: { type: String, trim: true },
+
+//     email: {
+//       type: String,
+//       required: true,
+//       unique: true,
+//       lowercase: true,
+//       trim: true
+//     },
+
+//     password: {
+//       type: String,
+//       required: true,
+//       minlength: 6,
+//       select: false   // 🔐 IMPORTANT
+//     },
+
+//     phone: String,
+
+//     role: {
+//       type: String,
+//       default: "supplier"
+//     },
+
+//     status: {
+//       type: String,
+//       enum: ["pending", "approved", "rejected", "active", "inactive", "blocked"],
+//       default: "pending"
+//     },
+
+//     lastLogin: Date
+//   },
+//   { timestamps: true }
+// );
+
+// /* ---------------------------------
+//    Hash password before save
+// ---------------------------------- */
+// supplierSchema.pre("save", async function (next) {
+//   if (!this.isModified("password")) return next();
+//   this.password = await bcrypt.hash(this.password, 10);
+//   next();
+// });
+
+// /* ---------------------------------
+//    Compare password
+// ---------------------------------- */
+// supplierSchema.methods.isPasswordCorrect = async function (password) {
+//   return await bcrypt.compare(password, this.password);
+// };
+
+// /* ---------------------------------
+//    Generate JWT
+// ---------------------------------- */
+// supplierSchema.methods.generateAccessToken = function () {
+//   return jwt.sign(
+//     { id: this._id, role: this.role },
+//     process.env.ACCESS_TOKEN_SECRET,
+//     { expiresIn: "1d" }
+//   );
+// };
+
+// // Prevent model overwrite
+// export default mongoose.models.Supplier ||
+//   mongoose.model("Supplier", supplierSchema);

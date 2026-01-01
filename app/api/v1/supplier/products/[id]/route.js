@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import dbConnect from "@/lib/connectDB";
 import Category from "@/models/Category";
 import Product from "@/models/Product";
+import { authenticateSupplier } from "@/middlewares/auth.middleware";
 
 /** Validate ObjectId */
 function isValidObjectIdString(id) {
@@ -13,6 +14,28 @@ function isValidObjectIdString(id) {
 ------------------------------------------------------- */
 export async function GET(request, { params }) {
   await dbConnect();
+
+  const token = request.headers.get('authorization')?.replace('Bearer ', '');
+    
+    if (!token) {
+      return NextResponse.json(
+        { success: false, message: "Authentication required" },
+        { status: 401 }
+      );
+    }
+
+    const user = authenticateSupplier(token);
+  if (!user || !["admin", "supplier"].includes(user.role)) {
+    return NextResponse.json(
+      { success: false, error: "Unauthorized" },
+      { status: 401 }
+    );
+  }
+
+  // if supplier, force supplierId
+  if (user.role === "supplier") {
+    body.supplierId = user.supplierId;
+  }
 
   try {
     const { id } = await params;
@@ -79,6 +102,28 @@ export async function GET(request, { params }) {
 export async function PUT(request, { params }) {
   await dbConnect();
 
+  const token = request.headers.get('authorization')?.replace('Bearer ', '');
+    
+    if (!token) {
+      return NextResponse.json(
+        { success: false, message: "Authentication required" },
+        { status: 401 }
+      );
+    }
+
+    const user = authenticateSupplier(token);
+  if (!user || !["admin", "supplier"].includes(user.role)) {
+    return NextResponse.json(
+      { success: false, error: "Unauthorized" },
+      { status: 401 }
+    );
+  }
+
+  // if supplier, force supplierId
+  if (user.role === "supplier") {
+    body.supplierId = user.supplierId;
+  }
+
   try {
     const { id } = await params;
 
@@ -91,11 +136,15 @@ export async function PUT(request, { params }) {
 
     const body = await request.json();
 
-    const updated = await Product.findByIdAndUpdate(id, body, {
-      new: true,
-      overwrite: true,
-      runValidators: true,
-    });
+    const updated = await Product.findByIdAndUpdate(
+  id,
+  body,
+  {
+    new: true,
+    runValidators: true,
+  }
+);
+
 
     if (!updated) {
       return NextResponse.json(
@@ -119,6 +168,29 @@ export async function PUT(request, { params }) {
 ------------------------------------------------------- */
 export async function PATCH(request, { params }) {
   await dbConnect();
+
+
+  const token = request.headers.get('authorization')?.replace('Bearer ', '');
+    
+    if (!token) {
+      return NextResponse.json(
+        { success: false, message: "Authentication required" },
+        { status: 401 }
+      );
+    }
+
+    const user = authenticateSupplier(token);
+  if (!user || !["admin", "supplier"].includes(user.role)) {
+    return NextResponse.json(
+      { success: false, error: "Unauthorized" },
+      { status: 401 }
+    );
+  }
+
+  // if supplier, force supplierId
+  if (user.role === "supplier") {
+    body.supplierId = user.supplierId;
+  }
 
   try {
     const { id } = await params;
@@ -160,6 +232,28 @@ export async function PATCH(request, { params }) {
 ------------------------------------------------------- */
 export async function DELETE(request, { params }) {
   await dbConnect();
+
+  const token = request.headers.get('authorization')?.replace('Bearer ', '');
+    
+    if (!token) {
+      return NextResponse.json(
+        { success: false, message: "Authentication required" },
+        { status: 401 }
+      );
+    }
+
+    const user = authenticateSupplier(token);
+  if (!user || !["admin", "supplier"].includes(user.role)) {
+    return NextResponse.json(
+      { success: false, error: "Unauthorized" },
+      { status: 401 }
+    );
+  }
+
+  // if supplier, force supplierId
+  if (user.role === "supplier") {
+    body.supplierId = user.supplierId;
+  }
 
   try {
     const { id } = await params;
