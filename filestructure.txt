@@ -1,0 +1,120 @@
+|-- .env.local
+|-- .gitignore
+|-- Aneri FF Testing.postman_collection.json
+|-- app
+    |-- api
+        |-- v1
+            |-- admin
+                |-- customers
+                    |-- route.js
+                    |-- [id]
+                        |-- route.js
+                |-- dashboard
+                    |-- stats
+                        |-- route.js
+                |-- profile
+                    |-- password
+                        |-- route.js
+                    |-- route.js
+                |-- route.js
+                |-- suppliers
+                    |-- route.js
+                    |-- [id]
+                        |-- route.js
+            |-- auth
+                |-- login
+                    |-- route.js
+                |-- logout
+                    |-- route.js
+                |-- profile
+                    |-- route.js
+                |-- refresh-token
+                    |-- route.js
+                |-- register
+                    |-- route.js
+                |-- verify-otp
+                    |-- route.js
+            |-- category
+                |-- route.js
+            |-- customer
+                |-- route.js
+            |-- delivery
+                |-- route.js
+            |-- orders
+                |-- route.js
+            |-- superadmin
+                |-- auth
+                    |-- login
+                        |-- route.js
+                    |-- register
+                        |-- route.js
+            |-- supplier
+                |-- auth
+                    |-- register
+                        |-- route.js
+                |-- dashboard
+                    |-- stats
+                        |-- route.js
+                |-- orders
+                    |-- route.js
+                    |-- [id]
+                        |-- route.js
+                |-- products
+                    |-- route.js
+                    |-- [id]
+                        |-- route.js
+                |-- profile
+                    |-- address
+                        |-- route.js
+                    |-- bank-details
+                        |-- route.js
+                    |-- route.js
+                    |-- verification-status
+                        |-- route.js
+                |-- route.js
+            |-- test
+                |-- route.js
+            |-- wishlist
+                |-- route.js
+|-- eslint.config.mjs
+|-- jsconfig.json
+|-- lib
+    |-- connectDB.js
+|-- middlewares
+    |-- auth.middleware.js
+    |-- errorHandler.js
+    |-- multer.js
+|-- models
+    |-- Admin.js
+    |-- Cart.js
+    |-- Category.js
+    |-- Coupon.js
+    |-- Customer.js
+    |-- DeliveryAssociate.js
+    |-- ExcelFile.js
+    |-- Notification.js
+    |-- Order.js
+    |-- OrderReplacement.js
+    |-- PreviewProduct.js
+    |-- Product.js
+    |-- Review.js
+    |-- Session.js
+    |-- Settings.js
+    |-- SuperAdmin.js
+    |-- Supplier.js
+|-- next.config.mjs
+|-- package-lock.json
+|-- package.json
+|-- public
+    |-- file.svg
+    |-- globe.svg
+    |-- next.svg
+    |-- vercel.svg
+    |-- window.svg
+|-- README.md
+|-- services
+    |-- otp.service.js
+    |-- token.service.js
+|-- utils
+    |-- corsHandler.js
+    |-- generateSKU.js
