@@ -4,6 +4,7 @@ import Supplier from "@/models/Supplier";
 import SuperAdmin from "@/models/SuperAdmin";
 import Admin from "@/models/Admin";
 import dbConnect from "@/lib/connectDB";
+import DeliveryAssociate from "@/models/DeliveryAssociate";
 /**
  * Verify JWT token and return user object
  */
@@ -28,7 +29,7 @@ export const verifyJWT = async (token) => {
     } else if (decodedToken.role === "supplier") {
       user = await Supplier.findById(decodedToken.id).select("-password");
     } else if (decodedToken.role === "deliveryAssociate") {
-      const DeliveryAssociate = (await import("@/models/deliveryAssociate.model")).default;
+      const DeliveryAssociate = (await import("@/models/DeliveryAssociate")).default;
       user = await DeliveryAssociate.findById(decodedToken.id).select("-password -passwordResetToken -passwordResetExpires");
     } else {
       user = await Customer.findById(decodedToken.id).select("-password");

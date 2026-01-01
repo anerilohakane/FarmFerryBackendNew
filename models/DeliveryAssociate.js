@@ -224,6 +224,9 @@ deliveryAssociateSchema.methods.generatePasswordResetToken = function () {
   return resetToken;
 };
 
-const DeliveryAssociate = mongoose.model("DeliveryAssociate", deliveryAssociateSchema);
+const DeliveryAssociate =
+  mongoose.models.DeliveryAssociate ||
+  mongoose.model("DeliveryAssociate", deliveryAssociateSchema);
 
 export default DeliveryAssociate;
+

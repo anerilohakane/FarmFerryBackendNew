@@ -153,6 +153,8 @@ adminSchema.virtual('joinDate').get(function() {
   return this.createdAt;
 });
 
-const Admin = mongoose.model("Admin", adminSchema);
+const Admin =
+  mongoose.models.Admin || mongoose.model("Admin", adminSchema);
 
 export default Admin;
+
