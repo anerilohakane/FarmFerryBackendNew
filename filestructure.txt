@@ -52,6 +52,8 @@
                         |-- route.js
             |-- supplier
                 |-- auth
+                    |-- login
+                        |-- route.js
                     |-- register
                         |-- route.js
                 |-- dashboard
