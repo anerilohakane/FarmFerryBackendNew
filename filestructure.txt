@@ -34,6 +34,8 @@
                     |-- route.js
                 |-- verify-otp
                     |-- route.js
+            |-- cart
+                |-- route.js
             |-- category
                 |-- route.js
             |-- customer
@@ -102,6 +104,7 @@
     |-- Settings.js
     |-- SuperAdmin.js
     |-- Supplier.js
+    |-- Wishlists.js
 |-- next.config.mjs
 |-- package-lock.json
 |-- package.json
