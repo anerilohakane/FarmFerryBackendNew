@@ -3,7 +3,7 @@ import jwt from "jsonwebtoken";
 import Session from "@/models/Session";
 import Customer from "@/models/Customer";
 import { generateAccessToken } from "@/services/token.service";
-import { apiResponse } from "@/utils/apiResponse";
+// import { apiResponse } from "@/utils/apiResponse";
 import { handleCors, corsHandler } from "@/utils/corsHandler";
 
 export async function POST(req) {

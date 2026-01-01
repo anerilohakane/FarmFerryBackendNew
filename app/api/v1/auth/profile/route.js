@@ -1,6 +1,6 @@
-import { authMiddleware } from "@/middlewares/auth.middleware";
-import { apiResponse } from "@/utils/apiResponse";
+// import { apiResponse } from "@/utils/apiResponse";
 import { handleCors, corsHandler } from "@/utils/corsHandler";
+import { authenticate } from "@/middlewares/auth.middleware";
 
 export async function GET(req) {
   // Handle CORS preflight
