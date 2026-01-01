@@ -1,16 +1,14 @@
 import { NextResponse } from 'next/server';
 import { dbConnect } from '@/lib/dbConnect';
 import Admin from '@/models/Admin';
-import { withAuth } from '@/lib/auth';
 
 // PUT - Change admin password
-export const PUT = withAuth(async (req) => {
+export async function PUT(req) {
   try {
+    
     await dbConnect();
     
-    const userId = req.headers.get('x-user-id');
     const body = await req.json();
-    
     const { currentPassword, newPassword, confirmPassword } = body;
     
     // Validation
@@ -35,7 +33,7 @@ export const PUT = withAuth(async (req) => {
       );
     }
     
-    const admin = await Admin.findById(userId);
+    const admin = await Admin.findById(user.id);
     
     if (!admin) {
       return NextResponse.json(
@@ -71,4 +69,4 @@ export const PUT = withAuth(async (req) => {
       { status: 500 }
     );
   }
-}, true);
+}

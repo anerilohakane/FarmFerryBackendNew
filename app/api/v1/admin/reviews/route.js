@@ -1,28 +1,38 @@
 import { NextResponse } from 'next/server';
 import { dbConnect } from '@/lib/dbConnect';
-import Customer from '@/models/Customer';
+import Review from '@/models/Review';
+import { requireAuth } from '@/lib/auth';
 
-// GET - Get all customers
+// GET - Get all reviews
 export async function GET(req) {
   try {
     
     await dbConnect();
     
     const { searchParams } = new URL(req.url);
+    const status = searchParams.get('status');
+    const rating = searchParams.get('rating');
     const search = searchParams.get('search');
     const sort = searchParams.get('sort') || "createdAt";
     const order = searchParams.get('order') || "desc";
     const page = parseInt(searchParams.get('page') || "1");
     const limit = parseInt(searchParams.get('limit') || "10");
     
-    const queryOptions = {};
+    // Build query
+    const query = {};
     
-    // Search by name or email
+    if (status && status !== 'all') {
+      query.status = status;
+    }
+    
+    if (rating && rating !== 'all') {
+      query.rating = parseInt(rating);
+    }
+    
     if (search) {
-      queryOptions.$or = [
-        { firstName: { $regex: search, $options: "i" } },
-        { lastName: { $regex: search, $options: "i" } },
-        { email: { $regex: search, $options: "i" } }
+      query.$or = [
+        { title: { $regex: search, $options: 'i' } },
+        { comment: { $regex: search, $options: 'i' } }
       ];
     }
     
@@ -33,35 +43,37 @@ export async function GET(req) {
     const sortOptions = {};
     sortOptions[sort] = order === "asc" ? 1 : -1;
     
-    // Get customers with pagination
-    const customers = await Customer.find(queryOptions)
-      .select("-password -passwordResetToken -passwordResetExpires")
+    // Get reviews with populated data
+    const reviews = await Review.find(query)
+      .populate("customer", "firstName lastName email profileImage")
+      .populate("product", "name images")
+      .populate("order", "orderNumber")
       .sort(sortOptions)
       .skip(skip)
       .limit(limit);
     
     // Get total count
-    const totalCustomers = await Customer.countDocuments(queryOptions);
+    const totalReviews = await Review.countDocuments(query);
     
     return NextResponse.json(
       {
         success: true,
-        data: { 
-          customers,
+        data: {
+          reviews,
           pagination: {
-            total: totalCustomers,
+            total: totalReviews,
             page: page,
             limit: limit,
-            pages: Math.ceil(totalCustomers / limit)
+            pages: Math.ceil(totalReviews / limit)
           }
         },
-        message: "Customers fetched successfully"
+        message: "Reviews fetched successfully"
       },
       { status: 200 }
     );
     
   } catch (error) {
-    console.error('Get customers error:', error);
+    console.error('Get reviews error:', error);
     return NextResponse.json(
       { success: false, message: error.message || 'Internal server error' },
       { status: 500 }

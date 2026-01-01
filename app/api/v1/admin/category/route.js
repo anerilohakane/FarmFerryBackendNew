@@ -79,3 +79,23 @@ export async function POST(req) {
     );
   }
 }
+
+
+export async function GET(req) {
+  try {
+    await dbConnect();
+   
+    const categories = await Category.find();
+
+    return NextResponse.json({
+      success: true,
+      data: categories,
+    });
+  } catch (error) {
+    console.error("GET CATEGORIES ERROR:", error);
+    return NextResponse.json(
+      { success: false, message: error.message },
+      { status: 500 }
+    );
+  }
+}
