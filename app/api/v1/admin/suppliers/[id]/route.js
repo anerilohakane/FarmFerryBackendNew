@@ -1,11 +1,12 @@
 import { NextResponse } from 'next/server';
 import { dbConnect } from '@/lib/dbConnect';
 import Supplier from '@/models/Supplier';
-import { withAuth } from '@/lib/auth';
+import { requireAuth } from '@/lib/auth';
 
 // GET - Get supplier by ID
-export const GET = withAuth(async (req, { params }) => {
+export async function GET(req, { params }) {
   try {
+    
     await dbConnect();
     
     const { id } = params;
@@ -36,11 +37,12 @@ export const GET = withAuth(async (req, { params }) => {
       { status: 500 }
     );
   }
-}, true);
+}
 
 // PUT - Update supplier
-export const PUT = withAuth(async (req, { params }) => {
+export async function PUT(req, { params }) {
   try {
+    
     await dbConnect();
     
     const { id } = params;
@@ -49,7 +51,7 @@ export const PUT = withAuth(async (req, { params }) => {
     
     // If updating status, handle verification
     if (status) {
-      return await handleStatusUpdate(id, status, verificationNotes, req);
+      return await handleStatusUpdate(id, status, verificationNotes, user.id);
     }
     
     // Regular update
@@ -102,10 +104,10 @@ export const PUT = withAuth(async (req, { params }) => {
       { status: 500 }
     );
   }
-}, true);
+}
 
 // Helper function for status update
-async function handleStatusUpdate(supplierId, status, verificationNotes, req) {
+async function handleStatusUpdate(supplierId, status, verificationNotes, adminId) {
   // Validate status
   if (!["pending", "approved", "rejected"].includes(status)) {
     return NextResponse.json(
@@ -129,7 +131,7 @@ async function handleStatusUpdate(supplierId, status, verificationNotes, req) {
   // Add verification details if approved or rejected
   if (status === "approved") {
     supplier.verifiedAt = new Date();
-    supplier.verifiedBy = req.headers.get('x-user-id');
+    supplier.verifiedBy = adminId;
     supplier.verificationNotes = verificationNotes || "Approved by admin";
     
     // Also mark all documents as verified if they exist
@@ -137,7 +139,7 @@ async function handleStatusUpdate(supplierId, status, verificationNotes, req) {
       supplier.documents.forEach(doc => {
         doc.isVerified = true;
         doc.verifiedAt = new Date();
-        doc.verifiedBy = req.headers.get('x-user-id');
+        doc.verifiedBy = adminId;
         doc.verificationNotes = "Auto-verified with supplier approval";
       });
     }

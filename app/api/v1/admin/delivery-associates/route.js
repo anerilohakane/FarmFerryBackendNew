@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
 import { dbConnect } from '@/lib/dbConnect';
-import Supplier from '@/models/Supplier';
+import DeliveryAssociate from '@/models/DeliveryAssociate';
 
-// GET - Get all suppliers
+// GET - Get all delivery associates
 export async function GET(req) {
   try {
     
@@ -18,12 +18,12 @@ export async function GET(req) {
     
     const queryOptions = {};
     
-    // Search by business name, owner name, or email
+    // Search by name, email, or phone
     if (search) {
       queryOptions.$or = [
-        { businessName: { $regex: search, $options: "i" } },
-        { ownerName: { $regex: search, $options: "i" } },
-        { email: { $regex: search, $options: "i" } }
+        { name: { $regex: search, $options: "i" } },
+        { email: { $regex: search, $options: "i" } },
+        { phone: { $regex: search, $options: "i" } }
       ];
     }
     
@@ -39,35 +39,35 @@ export async function GET(req) {
     const sortOptions = {};
     sortOptions[sort] = order === "asc" ? 1 : -1;
     
-    // Get suppliers with pagination
-    const suppliers = await Supplier.find(queryOptions)
+    // Get delivery associates with pagination
+    const deliveryAssociates = await DeliveryAssociate.find(queryOptions)
       .select("-password -passwordResetToken -passwordResetExpires")
       .sort(sortOptions)
       .skip(skip)
       .limit(limit);
     
     // Get total count
-    const totalSuppliers = await Supplier.countDocuments(queryOptions);
+    const totalDeliveryAssociates = await DeliveryAssociate.countDocuments(queryOptions);
     
     return NextResponse.json(
       {
         success: true,
         data: { 
-          suppliers,
+          deliveryAssociates,
           pagination: {
-            total: totalSuppliers,
+            total: totalDeliveryAssociates,
             page: page,
             limit: limit,
-            pages: Math.ceil(totalSuppliers / limit)
+            pages: Math.ceil(totalDeliveryAssociates / limit)
           }
         },
-        message: "Suppliers fetched successfully"
+        message: "Delivery associates fetched successfully"
       },
       { status: 200 }
     );
     
   } catch (error) {
-    console.error('Get suppliers error:', error);
+    console.error('Get delivery associates error:', error);
     return NextResponse.json(
       { success: false, message: error.message || 'Internal server error' },
       { status: 500 }
@@ -75,53 +75,61 @@ export async function GET(req) {
   }
 }
 
-// POST - Create new supplier
+// POST - Create delivery associate
 export async function POST(req) {
   try {
     
     await dbConnect();
     
     const body = await req.json();
-    const { businessName, ownerName, email, phone, status, address, password } = body;
+    const { name, email, phone, password, status = 'Active', vehicleType = 'Motorcycle', address, specialization } = body;
     
-    if (!businessName || !ownerName || !email || !phone) {
+    if (!name || !email || !phone || !password) {
       return NextResponse.json(
-        { success: false, message: "Business name, owner name, email, and phone are required" },
+        { success: false, message: 'Name, email, phone, and password are required' },
         { status: 400 }
       );
     }
     
-    // Check if email already exists
-    const existing = await Supplier.findOne({ email });
+    // Check for duplicate email/phone
+    const existing = await DeliveryAssociate.findOne({ $or: [{ email }, { phone }] });
     
     if (existing) {
       return NextResponse.json(
-        { success: false, message: "Supplier with this email already exists" },
-        { status: 400 }
+        { success: false, message: 'A delivery associate with this email or phone already exists' },
+        { status: 409 }
       );
     }
     
-    const supplier = await Supplier.create({
-      businessName,
-      ownerName,
+    const deliveryAssociate = await DeliveryAssociate.create({
+      name,
       email,
       phone,
-      status: status || "pending",
+      password,
+      status,
+      isActive: status === 'Active',
+      vehicle: { type: vehicleType },
       address,
-      password: password || Math.random().toString(36).slice(-8),
+      specialization,
+      isVerified: false,
+      activeAssignments: 0,
+      ordersCompleted: 0,
+      rating: 0,
+      joinedDate: new Date(),
+      lastActive: new Date(),
     });
     
     return NextResponse.json(
       {
         success: true,
-        data: { supplier },
-        message: "Supplier created successfully"
+        data: { deliveryAssociate },
+        message: 'Delivery associate created successfully'
       },
       { status: 201 }
     );
     
   } catch (error) {
-    console.error('Create supplier error:', error);
+    console.error('Create delivery associate error:', error);
     return NextResponse.json(
       { success: false, message: error.message || 'Internal server error' },
       { status: 500 }

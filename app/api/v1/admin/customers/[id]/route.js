@@ -1,11 +1,11 @@
 import { NextResponse } from 'next/server';
 import { dbConnect } from '@/lib/dbConnect';
 import Customer from '@/models/Customer';
-import { withAuth } from '@/lib/auth';
 
 // GET - Get customer by ID
-export const GET = withAuth(async (req, { params }) => {
+export async function GET(req, { params }) {
   try {
+    
     await dbConnect();
     
     const { id } = params;
@@ -36,4 +36,4 @@ export const GET = withAuth(async (req, { params }) => {
       { status: 500 }
     );
   }
-}, true);
+}

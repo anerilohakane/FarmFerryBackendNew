@@ -5,11 +5,11 @@ import Supplier from '@/models/Supplier';
 import Product from '@/models/Product';
 import Order from '@/models/Order';
 import Category from '@/models/Category';
-import { withAuth } from '@/lib/auth';
 
 // GET - Get dashboard stats
-export const GET = withAuth(async (req) => {
+export async function GET(req) {
   try {
+    
     await dbConnect();
     
     // Get customer stats
@@ -143,4 +143,4 @@ export const GET = withAuth(async (req) => {
       { status: 500 }
     );
   }
-}, true);
+}

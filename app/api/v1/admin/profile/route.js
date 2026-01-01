@@ -1,16 +1,14 @@
 import { NextResponse } from 'next/server';
 import { dbConnect } from '@/lib/dbConnect';
 import Admin from '@/models/Admin';
-import { withAuth } from '@/lib/auth';
 
 // GET - Get admin profile
-export const GET = withAuth(async (req) => {
+export async function GET(req) {
   try {
+    
     await dbConnect();
     
-    const userId = req.headers.get('x-user-id');
-    
-    const admin = await Admin.findById(userId).select("-password -passwordResetToken -passwordResetExpires");
+    const admin = await Admin.findById(user.id).select("-password -passwordResetToken -passwordResetExpires");
     
     if (!admin) {
       return NextResponse.json(
@@ -39,16 +37,15 @@ export const GET = withAuth(async (req) => {
       { status: 500 }
     );
   }
-}, true); // true indicates admin-only access
+}
 
 // PUT - Update admin profile
-export const PUT = withAuth(async (req) => {
+export async function PUT(req) {
   try {
+    
     await dbConnect();
     
-    const userId = req.headers.get('x-user-id');
     const body = await req.json();
-    
     const { name, phone, location, company, avatar, notificationPreferences } = body;
     
     const updateFields = {};
@@ -61,7 +58,7 @@ export const PUT = withAuth(async (req) => {
     if (notificationPreferences) updateFields.notificationPreferences = notificationPreferences;
     
     const updatedAdmin = await Admin.findByIdAndUpdate(
-      userId,
+      user.id,
       { $set: updateFields },
       { new: true }
     ).select("-password -passwordResetToken -passwordResetExpires");
@@ -93,4 +90,4 @@ export const PUT = withAuth(async (req) => {
       { status: 500 }
     );
   }
-}, true);
+}
