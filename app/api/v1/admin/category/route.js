@@ -47,7 +47,7 @@ export async function POST(req) {
       isActive,
     });
 
-    // Create subcategories (optional)
+    // Create subcategories
     let createdSubcategories = [];
     if (subcategories.length > 0) {
       createdSubcategories = await Category.insertMany(
