@@ -220,7 +220,7 @@ export default Supplier;
 // supplierSchema.methods.generateAccessToken = function () {
 //   return jwt.sign(
 //     { id: this._id, role: this.role },
-//     process.env.ACCESS_TOKEN_SECRET,
+//     process.env.JWT_ACCESS_SECRET,,
 //     { expiresIn: "1d" }
 //   );
 // };

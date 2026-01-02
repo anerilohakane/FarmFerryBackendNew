@@ -190,9 +190,9 @@ deliveryAssociateSchema.methods.generateAccessToken = function () {
       email: this.email,
       role: this.role
     }, 
-    process.env.ACCESS_TOKEN_SECRET,
+    process.env.JWT_ACCESS_SECRET,
     {
-      expiresIn: process.env.ACCESS_TOKEN_EXPIRY
+      expiresIn: process.env.JWT_ACCESS_EXPIRY
     }
   );
 };

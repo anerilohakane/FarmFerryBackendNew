@@ -4,7 +4,8 @@ import Supplier from "@/models/Supplier";
 import SuperAdmin from "@/models/SuperAdmin";
 import Admin from "@/models/Admin";
 import dbConnect from "@/lib/connectDB";
-import DeliveryAssociate from "@/models/DeliveryAssociate";
+import mongoose from "mongoose";
+const connectDB = dbConnect;
 /**
  * Verify JWT token and return user object
  */
@@ -15,7 +16,11 @@ export const verifyJWT = async (token) => {
     }
 
     // Verify token
-    const decodedToken = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET || 'fallback_access_token_secret');
+    const decodedToken = jwt.verify(
+  token,
+  process.env.JWT_ACCESS_SECRET || "fallback_access_token_secret"
+);
+
 
     // Connect to database
     await connectDB();
