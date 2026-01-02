@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import { dbConnect } from '@/lib/dbConnect';
 import Review from '@/models/Review';
-import { requireAuth } from '@/lib/auth';
 
 // GET - Get review statistics
 export async function GET(req) {
