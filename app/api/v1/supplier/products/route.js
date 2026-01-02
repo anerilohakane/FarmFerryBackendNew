@@ -97,126 +97,28 @@ export async function GET(request) {
   }
 }
 
-// export async function POST(request) {
-//   await dbConnect();
-
-//   // ✅ CORRECT AUTH
-//   const authResult = await authenticateSupplier(request);
-
-//   if (!authResult.success) {
-//     return NextResponse.json(
-//       { success: false, error: authResult.error },
-//       { status: authResult.statusCode }
-//     );
-//   }
-
-//   const supplierUser = authResult.user; // ✅ real supplier
-
-//   try {
-//     const body = await request.json();
-
-//     // ✅ FORCE supplierId FROM TOKEN
-//     body.supplierId = supplierUser._id;
-
-//     /* ------------------ VALIDATION ------------------ */
-//     if (
-//       !body.name ||
-//       body.price == null ||
-//       body.stockQuantity == null ||
-//       !Array.isArray(body.images) ||
-//       body.images.length === 0
-//     ) {
-//       return NextResponse.json(
-//         { success: false, error: "Missing required fields" },
-//         { status: 400 }
-//       );
-//     }
-
-//     /* ------------------ CATEGORY ------------------ */
-//     let resolvedCategoryId = null;
-
-//     if (body.categoryId) {
-//       if (isValidObjectIdString(body.categoryId)) {
-//         const cat = await Category.findById(body.categoryId);
-//         if (!cat) {
-//           return NextResponse.json(
-//             { success: false, error: "Invalid categoryId" },
-//             { status: 400 }
-//           );
-//         }
-//         resolvedCategoryId = cat._id.toString();
-//       } else {
-//         const cat = await Category.findOne({
-//           $or: [
-//             { slug: body.categoryId },
-//             { name: new RegExp(`^${body.categoryId}$`, "i") }
-//           ]
-//         });
-
-//         if (!cat) {
-//           return NextResponse.json(
-//             { success: false, error: "Category not found" },
-//             { status: 400 }
-//           );
-//         }
-//         resolvedCategoryId = cat._id.toString();
-//       }
-//     }
-
-//     if (!resolvedCategoryId) {
-//       return NextResponse.json(
-//         { success: false, error: "Category is required" },
-//         { status: 400 }
-//       );
-//     }
-
-//     /* ------------------ SKU CHECK ------------------ */
-//     const skus = [];
-//     if (body.sku) skus.push(body.sku);
-//     if (Array.isArray(body.variations)) {
-//       body.variations.forEach(v => v?.sku && skus.push(v.sku));
-//     }
-
-//     if (skus.length) {
-//       const conflict = await Product.findOne({
-//         $or: [{ sku: { $in: skus } }, { "variations.sku": { $in: skus } }]
-//       });
-
-//       if (conflict) {
-//         return NextResponse.json(
-//           { success: false, error: "SKU conflict" },
-//           { status: 409 }
-//         );
-//       }
-//     }
-
-//     /* ------------------ CREATE PRODUCT ------------------ */
-//     const product = await Product.create({
-//       ...body,
-//       categoryId: resolvedCategoryId,
-//       supplierId: supplierUser._id
-//     });
-
-//     return NextResponse.json(
-//       { success: true, data: product },
-//       { status: 201 }
-//     );
-//   } catch (err) {
-//     console.error("POST /api/products error:", err);
-//     return NextResponse.json(
-//       { success: false, error: err.message },
-//       { status: 500 }
-//     );
-//   }
-// }
-
 export async function POST(request) {
   await dbConnect();
+
+  // ✅ CORRECT AUTH
+  const authResult = await authenticateSupplier(request);
+
+  if (!authResult.success) {
+    return NextResponse.json(
+      { success: false, error: authResult.error },
+      { status: authResult.statusCode }
+    );
+  }
+
+  const supplierUser = authResult.user; // ✅ real supplier
 
   try {
     const body = await request.json();
 
-    /* ------------------ BASIC VALIDATION ------------------ */
+    // ✅ FORCE supplierId FROM TOKEN
+    body.supplierId = supplierUser._id;
+
+    /* ------------------ VALIDATION ------------------ */
     if (
       !body.name ||
       body.price == null ||
@@ -230,26 +132,26 @@ export async function POST(request) {
       );
     }
 
-    /* ------------------ CATEGORY RESOLUTION ------------------ */
+    /* ------------------ CATEGORY ------------------ */
     let resolvedCategoryId = null;
 
     if (body.categoryId) {
-      if (isValidObjectIdString(String(body.categoryId))) {
-        const cat = await Category.findById(body.categoryId).lean();
+      if (isValidObjectIdString(body.categoryId)) {
+        const cat = await Category.findById(body.categoryId);
         if (!cat) {
           return NextResponse.json(
             { success: false, error: "Invalid categoryId" },
             { status: 400 }
           );
         }
-        resolvedCategoryId = String(cat._id);
+        resolvedCategoryId = cat._id.toString();
       } else {
         const cat = await Category.findOne({
           $or: [
             { slug: body.categoryId },
             { name: new RegExp(`^${body.categoryId}$`, "i") }
           ]
-        }).lean();
+        });
 
         if (!cat) {
           return NextResponse.json(
@@ -257,7 +159,7 @@ export async function POST(request) {
             { status: 400 }
           );
         }
-        resolvedCategoryId = String(cat._id);
+        resolvedCategoryId = cat._id.toString();
       }
     }
 
@@ -268,7 +170,7 @@ export async function POST(request) {
       );
     }
 
-    /* ------------------ SKU CONFLICT CHECK ------------------ */
+    /* ------------------ SKU CHECK ------------------ */
     const skus = [];
     if (body.sku) skus.push(body.sku);
     if (Array.isArray(body.variations)) {
@@ -291,7 +193,8 @@ export async function POST(request) {
     /* ------------------ CREATE PRODUCT ------------------ */
     const product = await Product.create({
       ...body,
-      categoryId: resolvedCategoryId
+      categoryId: resolvedCategoryId,
+      supplierId: supplierUser._id
     });
 
     return NextResponse.json(
@@ -306,3 +209,100 @@ export async function POST(request) {
     );
   }
 }
+
+// export async function POST(request) {
+//   await dbConnect();
+
+//   try {
+//     const body = await request.json();
+
+//     /* ------------------ BASIC VALIDATION ------------------ */
+//     if (
+//       !body.name ||
+//       body.price == null ||
+//       body.stockQuantity == null ||
+//       !Array.isArray(body.images) ||
+//       body.images.length === 0
+//     ) {
+//       return NextResponse.json(
+//         { success: false, error: "Missing required fields" },
+//         { status: 400 }
+//       );
+//     }
+
+//     /* ------------------ CATEGORY RESOLUTION ------------------ */
+//     let resolvedCategoryId = null;
+
+//     if (body.categoryId) {
+//       if (isValidObjectIdString(String(body.categoryId))) {
+//         const cat = await Category.findById(body.categoryId).lean();
+//         if (!cat) {
+//           return NextResponse.json(
+//             { success: false, error: "Invalid categoryId" },
+//             { status: 400 }
+//           );
+//         }
+//         resolvedCategoryId = String(cat._id);
+//       } else {
+//         const cat = await Category.findOne({
+//           $or: [
+//             { slug: body.categoryId },
+//             { name: new RegExp(`^${body.categoryId}$`, "i") }
+//           ]
+//         }).lean();
+
+//         if (!cat) {
+//           return NextResponse.json(
+//             { success: false, error: "Category not found" },
+//             { status: 400 }
+//           );
+//         }
+//         resolvedCategoryId = String(cat._id);
+//       }
+//     }
+
+//     if (!resolvedCategoryId) {
+//       return NextResponse.json(
+//         { success: false, error: "Category is required" },
+//         { status: 400 }
+//       );
+//     }
+
+//     /* ------------------ SKU CONFLICT CHECK ------------------ */
+//     const skus = [];
+//     if (body.sku) skus.push(body.sku);
+//     if (Array.isArray(body.variations)) {
+//       body.variations.forEach(v => v?.sku && skus.push(v.sku));
+//     }
+
+//     if (skus.length) {
+//       const conflict = await Product.findOne({
+//         $or: [{ sku: { $in: skus } }, { "variations.sku": { $in: skus } }]
+//       });
+
+//       if (conflict) {
+//         return NextResponse.json(
+//           { success: false, error: "SKU conflict" },
+//           { status: 409 }
+//         );
+//       }
+//     }
+
+//     /* ------------------ CREATE PRODUCT ------------------ */
+//     const product = await Product.create({
+//       ...body,
+//       categoryId: resolvedCategoryId
+//     });
+
+//     return NextResponse.json(
+//       { success: true, data: product },
+//       { status: 201 }
+//     );
+//   } catch (err) {
+//     console.error("POST /api/products error:", err);
+//     return NextResponse.json(
+//       { success: false, error: err.message },
+//       { status: 500 }
+//     );
+//   }
+// }
