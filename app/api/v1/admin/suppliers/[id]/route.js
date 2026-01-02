@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
-import { dbConnect } from '@/lib/dbConnect';
+import dbConnect from '@/lib/connectDB';
 import Supplier from '@/models/Supplier';
-import { requireAuth } from '@/lib/auth';
+// import { requireAuth } from '@/lib/auth';
 
 // GET - Get supplier by ID
 export async function GET(req, { params }) {

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { dbConnect } from '@/lib/dbConnect';
+import dbConnect from '@/lib/connectDB';
 import Supplier from '@/models/Supplier';
 
 // GET - Get all suppliers
