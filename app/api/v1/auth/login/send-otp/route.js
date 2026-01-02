@@ -3,6 +3,16 @@ import Customer from "@/models/Customer";
 import { generateOTP } from "@/services/otp.service";
 import { handleCors, corsHandler } from "@/utils/corsHandler";
 
+
+
+export async function OPTIONS(req) {
+  return new Response(null, {
+    status: 204,
+    headers: corsHandler(req),
+  });
+}
+
+
 export async function POST(req) {
   const corsResponse = await handleCors(req);
   if (corsResponse) return corsResponse;
