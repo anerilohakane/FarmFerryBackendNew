@@ -36,6 +36,12 @@ export async function GET(request) {
       supplierId, 
       isActive: true 
     });
+
+    // Get low stock products (threshold <= 10)
+    const lowStockProducts = await Product.countDocuments({
+      supplierId,
+      stockQuantity: { $lte: 10 }
+    });
     
     // Get total orders
     const totalOrders = await Order.countDocuments({ supplier: supplierId });
@@ -127,7 +133,8 @@ export async function GET(request) {
       data: { 
         products: {
           total: totalProducts,
-          active: activeProducts
+          active: activeProducts,
+          lowStock: lowStockProducts
         },
         orders: {
           total: totalOrders,
