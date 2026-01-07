@@ -17,9 +17,9 @@ export const verifyJWT = async (token) => {
 
     // Verify token
     const decodedToken = jwt.verify(
-  token,
-  process.env.JWT_ACCESS_SECRET || "fallback_access_token_secret"
-);
+      token,
+      process.env.JWT_ACCESS_SECRET || "fallback_access_token_secret"
+    );
 
 
     // Connect to database
@@ -67,26 +67,26 @@ export const authenticate = async (request) => {
     const token = authHeader?.replace('Bearer ', '') || null;
 
     const result = await verifyJWT(token);
-    
+
     if (result.error) {
-      return { 
-        success: false, 
-        error: result.error, 
-        statusCode: result.statusCode 
+      return {
+        success: false,
+        error: result.error,
+        statusCode: result.statusCode
       };
     }
-    
-    return { 
-      success: true, 
-      user: result.user, 
-      role: result.role 
+
+    return {
+      success: true,
+      user: result.user,
+      role: result.role
     };
   } catch (error) {
     console.error("Authentication error:", error);
-    return { 
-      success: false, 
-      error: "Authentication failed", 
-      statusCode: 401 
+    return {
+      success: false,
+      error: "Authentication failed",
+      statusCode: 401
     };
   }
 };
@@ -96,11 +96,11 @@ export const authenticate = async (request) => {
  */
 export const authenticateSupplier = async (request) => {
   const authResult = await authenticate(request);
-  
+
   if (!authResult.success) {
     return authResult;
   }
-  
+
   if (authResult.role !== 'supplier') {
     return {
       success: false,
@@ -108,7 +108,7 @@ export const authenticateSupplier = async (request) => {
       statusCode: 403
     };
   }
-  
+
   return authResult;
 };
 
@@ -119,11 +119,11 @@ export const authenticateSupplier = async (request) => {
 export const requireRole = (allowedRoles) => {
   return async (request) => {
     const authResult = await authenticate(request);
-    
+
     if (!authResult.success) {
       return authResult;
     }
-    
+
     if (!allowedRoles.includes(authResult.role)) {
       return {
         success: false,
@@ -131,7 +131,7 @@ export const requireRole = (allowedRoles) => {
         statusCode: 403
       };
     }
-    
+
     return authResult;
   };
 };
@@ -141,11 +141,11 @@ export const requireRole = (allowedRoles) => {
  */
 export const requireVerifiedSupplier = async (request) => {
   const authResult = await authenticateSupplier(request);
-  
+
   if (!authResult.success) {
     return authResult;
   }
-  
+
   if (authResult.user.status !== "approved") {
     return {
       success: false,
@@ -153,7 +153,7 @@ export const requireVerifiedSupplier = async (request) => {
       statusCode: 403
     };
   }
-  
+
   return authResult;
 };
 
@@ -163,14 +163,14 @@ export const requireVerifiedSupplier = async (request) => {
  */
 export const authenticateSupplierToken = async (token) => {
   const result = await verifyJWT(token);
-  
+
   if (result.error) {
     return null;
   }
-  
+
   if (result.role !== 'supplier') {
     return null;
   }
-  
+
   return result.user;
 };
