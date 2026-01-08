@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
-import dbConnect from "@/lib/db/connect";
-import Wishlist from "@/lib/db/models/wishlist";
-import Product from "@/lib/db/models/product";
+import dbConnect from "@/lib/connectDB";
+import Wishlists from "@/models/Wishlists";
+import Product from "@/models/Product";
 // Optional: import getUserFromRequest to derive user from token
 // import { getUserFromRequest } from "@/lib/serverAuth";
 
