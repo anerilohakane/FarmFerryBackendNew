@@ -3,6 +3,8 @@ import dbConnect from "@/lib/connectDB";
 import Order from "@/models/Order";
 import Product from "@/models/Product";
 import Customer from "@/models/Customer";
+import Notification from "@/models/Notification";
+import DeliveryAssociate from "@/models/DeliveryAssociate";
 import { verifyJWT } from "@/middlewares/auth.middleware";
 
 export async function POST(req) {
@@ -102,6 +104,22 @@ export async function POST(req) {
       status: "pending",
       paymentStatus: "pending"
     });
+
+    // 🔔 Notify all active Delivery Associates
+    const activeDas = await DeliveryAssociate.find({ isActive: true, isVerified: true });
+    
+    if (activeDas.length > 0) {
+      const notifications = activeDas.map(da => ({
+        recipient: da._id,
+        recipientType: 'deliveryAssociate',
+        title: 'New Order Available',
+        message: `New order #${order._id.toString().slice(-6)} is available for delivery.`,
+        type: 'order_available',
+        referenceId: order._id
+      }));
+      
+      await Notification.insertMany(notifications);
+    }
 
     return NextResponse.json(
       {
