@@ -1,0 +1,4 @@
+REGISTRATION RESPONSE: {
+  "success": false,
+  "message": "secretOrPrivateKey must have a value"
+}

@@ -16,7 +16,7 @@ async function runTest() {
         console.error("token.txt not found."); process.exit(1);
     }
     const token = fs.readFileSync('token.txt', 'utf8').trim();
-    const BASE_URL = 'http://localhost:3005/api/v1';
+    const BASE_URL = 'http://localhost:3000/api/v1';
 
     // 2. Identify Supplier
     console.log("Fetching Supplier Profile...");
@@ -44,7 +44,7 @@ async function runTest() {
     // We need a product
     const ProductSchema = new mongoose.Schema({}, { strict: false });
     const Product = mongoose.models.Product || mongoose.model('Product', ProductSchema);
-    const product = await Product.findOne({ supplierId: supplier._id }) || await Product.findOne({});
+    const product = await Product.findOne({ supplierId: supplierId }) || await Product.findOne({});
 
     const OrderSchema = new mongoose.Schema({
         supplier: mongoose.Schema.Types.ObjectId,
@@ -62,6 +62,7 @@ async function runTest() {
     const TEST_AMOUNT = 1500;
 
     const testOrder = await Order.create({
+        orderId: `ORD_REV_${Date.now()}`,
         supplier: supplierId,
         customer: customer ? customer._id : new mongoose.Types.ObjectId(),
         totalAmount: TEST_AMOUNT,

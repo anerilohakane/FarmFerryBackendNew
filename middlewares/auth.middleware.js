@@ -174,3 +174,24 @@ export const authenticateSupplierToken = async (token) => {
 
   return result.user;
 };
+
+/**
+ * Verify token for Delivery Associate routes
+ */
+export const authenticateDeliveryAssociate = async (request) => {
+  const authResult = await authenticate(request);
+
+  if (!authResult.success) {
+    return authResult;
+  }
+
+  if (authResult.role !== 'deliveryAssociate') {
+    return {
+      success: false,
+      error: "Access denied. Delivery Associate role required.",
+      statusCode: 403
+    };
+  }
+
+  return authResult;
+};
