@@ -24,25 +24,18 @@ export const corsHandler = (req) => {
 
   const origin = req.headers.get('origin');
 
-  return {
-    'Access-Control-Allow-Origin': allowedOrigins.includes(origin) ? origin : '',
+  const headers = {
     'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type, Authorization, Accept',
+    'Access-Control-Allow-Credentials': 'true',
   };
+
+  if (origin && allowedOrigins.includes(origin)) {
+    headers['Access-Control-Allow-Origin'] = origin;
+  }
+
+  return headers;
 };
-
-// export const handleCors = async (req) => {
-//   if (req.method === 'OPTIONS') {
-//     const headers = corsHandler(req);
-//     return new Response(null, {
-//       status: 200,
-//       headers,
-//     });
-//   }
-//   return null;
-// };
-
-
 
 export const handleCors = (req) => {
   if (req.method === 'OPTIONS') {
