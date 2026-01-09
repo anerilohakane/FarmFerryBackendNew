@@ -38,7 +38,7 @@ export async function GET(req) {
 
     // 3. Earnings (Mock Logic: 50 per order)
     // In a real app, this would come from a Wallet/Transaction model
-    const FIXED_RATE = 50; 
+    const FIXED_RATE = 20; 
     const todayEarnings = completedToday * FIXED_RATE;
 
     // 4. Response
