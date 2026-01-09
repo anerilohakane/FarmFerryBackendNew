@@ -8,23 +8,16 @@ export async function GET(request) {
   try {
     await connectDB();
     
-    const token = request.headers.get('authorization')?.replace('Bearer ', '');
+    const authResult = await authenticateSupplier(request);
     
-    if (!token) {
+    if (!authResult.success) {
       return NextResponse.json(
-        { success: false, message: "Authentication required" },
-        { status: 401 }
+        { success: false, message: authResult.error },
+        { status: authResult.statusCode }
       );
     }
-
-    const supplier = await authenticateSupplier(token);
     
-    if (!supplier) {
-      return NextResponse.json(
-        { success: false, message: "Invalid or expired token" },
-        { status: 401 }
-      );
-    }
+    const supplier = authResult.user;
 
     const supplierId = supplier._id;
     
@@ -35,6 +28,12 @@ export async function GET(request) {
     const activeProducts = await Product.countDocuments({ 
       supplierId, 
       isActive: true 
+    });
+
+    // Get low stock products (threshold <= 10)
+    const lowStockProducts = await Product.countDocuments({
+      supplierId,
+      stockQuantity: { $lte: 10 }
     });
     
     // Get total orders
@@ -127,7 +126,8 @@ export async function GET(request) {
       data: { 
         products: {
           total: totalProducts,
-          active: activeProducts
+          active: activeProducts,
+          lowStock: lowStockProducts
         },
         orders: {
           total: totalOrders,

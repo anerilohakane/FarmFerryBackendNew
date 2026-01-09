@@ -1,0 +1,1 @@
+Order validation failed: deliveryAddress.phone: Path `deliveryAddress.phone` is required., deliveryAddress.country: Path `deliveryAddress.country` is required., deliveryAddress.postalCode: Path `deliveryAddress.postalCode` is required., deliveryAddress.state: Path `deliveryAddress.state` is required., deliveryAddress.street: Path `deliveryAddress.street` is required.

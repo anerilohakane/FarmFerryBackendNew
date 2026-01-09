@@ -38,6 +38,7 @@ export async function POST(req) {
       $setOnInsert: {
         phone,
         mobile: phone,            // satisfies UNIQUE index
+        role: "customer",         // Default role
         isPhoneVerified: false,
         createdAt: new Date()
       },

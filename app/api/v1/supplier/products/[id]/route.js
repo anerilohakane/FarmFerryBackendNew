@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import dbConnect from "@/lib/connectDB";
 import Category from "@/models/Category";
 import Product from "@/models/Product";
+import Notification from "@/models/Notification";
 import { authenticateSupplier } from "@/middlewares/auth.middleware";
 
 /** Validate ObjectId */
@@ -154,6 +155,27 @@ export async function PUT(request, { params }) {
     }
 
     return NextResponse.json({ success: true, data: updated });
+
+    /* ------------------ NOTIFICATION CHECK ------------------ */
+    if (updated.stockQuantity <= 10) {
+      const recentNotif = await Notification.findOne({
+        recipient: user.supplierId || user._id,
+        referenceId: updated._id,
+        type: "LOW_STOCK",
+        createdAt: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) }
+      });
+
+      if (!recentNotif) {
+        await Notification.create({
+          recipient: user.supplierId || user._id,
+          recipientType: "supplier",
+          title: "Low Stock Alert",
+          message: `Your product "${updated.name}" is running low on stock (${updated.stockQuantity} remaining).`,
+          type: "LOW_STOCK",
+          referenceId: updated._id
+        });
+      }
+    }
   } catch (err) {
     console.error("PUT /api/products/[id] error:", err);
     return NextResponse.json(
@@ -218,6 +240,27 @@ export async function PATCH(request, { params }) {
     }
 
     return NextResponse.json({ success: true, data: updated });
+
+    /* ------------------ NOTIFICATION CHECK ------------------ */
+    if (updated.stockQuantity <= 10) {
+      const recentNotif = await Notification.findOne({
+        recipient: user.supplierId || user._id,
+        referenceId: updated._id,
+        type: "LOW_STOCK",
+        createdAt: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) }
+      });
+
+      if (!recentNotif) {
+        await Notification.create({
+          recipient: user.supplierId || user._id,
+          recipientType: "supplier",
+          title: "Low Stock Alert",
+          message: `Your product "${updated.name}" is running low on stock (${updated.stockQuantity} remaining).`,
+          type: "LOW_STOCK",
+          referenceId: updated._id
+        });
+      }
+    }
   } catch (err) {
     console.error("PATCH /api/products/[id] error:", err);
     return NextResponse.json(

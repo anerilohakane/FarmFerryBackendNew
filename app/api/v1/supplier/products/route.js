@@ -34,6 +34,7 @@ export async function GET(request) {
     const isActive = url.searchParams.get("isActive");
     const sort = url.searchParams.get("sort") || "-createdAt";
     const sku = url.searchParams.get("sku");
+    const lowStock = url.searchParams.get("lowStock");
 
     const filter = {};
 
@@ -60,6 +61,10 @@ export async function GET(request) {
     if (supplierId) filter.supplierId = supplierId;
     if (isActive === "true") filter.isActive = true;
     if (isActive === "false") filter.isActive = false;
+
+    if (lowStock === "true") {
+      filter.stockQuantity = { $lte: 10 };
+    }
 
     if (sku) {
       filter.$or = [{ sku }, { "variations.sku": sku }];
