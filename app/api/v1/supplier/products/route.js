@@ -1,14 +1,25 @@
+//app/api/v1/supplier/products/route.js
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/connectDB";
 import Category from "@/models/Category";
 import Product from "@/models/Product";
 import { authenticateSupplier } from "@/middlewares/auth.middleware";
+import { corsHandler } from "@/utils/corsHandler";
+
 
 function isValidObjectIdString(id) {
   return typeof id === "string" && /^[0-9a-fA-F]{24}$/.test(id);
 }
 
 const DEFAULT_LIMIT = 20;
+
+
+export async function OPTIONS(req) {
+  return new Response(null, {
+    status: 204,
+    headers: corsHandler(req),
+  });
+}
 
 export async function GET(request) {
   await dbConnect();
