@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { authenticateDeliveryAssociate } from "@/middlewares/auth.middleware";
 import dbConnect from "@/lib/connectDB";
-import DeliveryAssociate from "@/models/DeliveryAssociate"; // Assumed model name
+import DeliveryAssociate from "@/models/DeliveryAssociate";
+import cloudinary from "@/lib/cloudinary";
 
 export async function POST(req) {
   try {
@@ -26,19 +27,53 @@ export async function POST(req) {
       return NextResponse.json({ success: false, message: "No file uploaded" }, { status: 400 });
     }
 
-    // Mock Upload Logic (In production, use S3/Cloudinary)
-    // We'll simulate a URL
-    const mockUrl = `https://mock-storage.com/${daId}/${documentType}_${Date.now()}.jpg`;
+    // Cloudinary Upload
+    // Convert file to buffer and then to base64 for cloudinary upload
+    const arrayBuffer = await file.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+    const fileBase64 = `data:${file.type};base64,${buffer.toString('base64')}`;
+
+    const uploadResponse = await new Promise((resolve, reject) => {
+        cloudinary.uploader.upload(fileBase64, {
+            folder: `delivery-associates/${daId}/documents`,
+            public_id: `${documentType}_${Date.now()}`,
+            resource_type: "auto"
+        }, (error, result) => {
+            if (error) reject(error);
+            else resolve(result);
+        });
+    });
+
+    const docUrl = uploadResponse.secure_url;
+    const publicId = uploadResponse.public_id;
 
     // Update DA Profile
-    // Assuming DeliveryAssociate model has a 'documents' array or specific fields
-    // Let's assume a generic update or specific fields for now. 
-    // Ideally we inspect the model, but for "Fix" speed, I'll update a 'documents' field if dynamic, or set verification status.
+    // Remove existing document of same type if it exists to avoid duplicates? Or keep history?
+    // Let's replace if exists or push if new.
     
-    // Let's update verification status to true for demo
+    // We need to use Mongoose update to push/set
+    // Check if document of this type already exists in array
+    const existingDocIndex = authResult.user.documents.findIndex(d => d.type === documentType);
+    
+    if (existingDocIndex >= 0) {
+        authResult.user.documents[existingDocIndex] = {
+            type: documentType,
+            url: docUrl,
+            publicId: publicId,
+            isVerified: true // Auto-verify for now? Or wait for admin? Let's say uploaded means pending but for this task user wants verify.
+        };
+    } else {
+        authResult.user.documents.push({
+            type: documentType,
+            url: docUrl,
+            publicId: publicId,
+            isVerified: true
+        });
+    }
+
+    // Verify user if all required docs are present? 
+    // minimal logic: just mark verified if at least one doc exists for now to unblock user
     authResult.user.isVerified = true; 
-    // Also save the doc ref if possible
-    // authResult.user.documents.push({ type: documentType, url: mockUrl }); // Simplest assumption
 
     await authResult.user.save();
 
@@ -46,8 +81,9 @@ export async function POST(req) {
       success: true,
       message: "Document uploaded successfully",
       data: {
-        url: mockUrl,
-        isVerified: true
+        url: docUrl,
+        isVerified: true,
+        documents: authResult.user.documents
       }
     });
 
