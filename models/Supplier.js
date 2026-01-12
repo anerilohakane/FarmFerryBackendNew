@@ -155,33 +155,5 @@ if (mongoose.models.Supplier) {
 
 const Supplier = mongoose.model("Supplier", supplierSchema);
 
-/* ---------------------------------
-   Hash password before save
----------------------------------- */
-supplierSchema.pre("save", async function (next) {
-  if (!this.isModified("password")) return next();
-  this.password = await bcrypt.hash(this.password, 10);
-  next();
-});
-
-/* ---------------------------------
-   Compare password
----------------------------------- */
-supplierSchema.methods.isPasswordCorrect = async function (password) {
-  return await bcrypt.compare(password, this.password);
-};
-
-/* ---------------------------------
-   Generate JWT
----------------------------------- */
-supplierSchema.methods.generateAccessToken = function () {
-  return jwt.sign(
-    { id: this._id, role: this.role },
-    process.env.JWT_ACCESS_SECRET,
-    { expiresIn: "1d" }
-  );
-};
-
 // Prevent model overwrite
-export default mongoose.models.Supplier ||
-  mongoose.model("Supplier", supplierSchema);
+export default mongoose.models.Supplier || Supplier;
