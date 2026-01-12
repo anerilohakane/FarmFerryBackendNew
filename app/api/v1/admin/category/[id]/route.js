@@ -21,7 +21,7 @@ async function isCircularQuery(targetId, newParentId) {
 // GET Single Category
 export async function GET(request, { params }) {
     await dbConnect();
-    const { id } = params;
+    const { id } = await params;
 
     try {
         const category = await Category.findById(id).populate('parent', 'name');
@@ -42,7 +42,7 @@ export async function GET(request, { params }) {
 
 export async function PUT(request, { params }) {
     await dbConnect();
-    const { id } = params;
+    const { id } = await params;
 
     const authCheck = await requireRole(["admin", "superadmin"])(request);
     if (!authCheck.success) {
@@ -152,7 +152,8 @@ export async function PUT(request, { params }) {
 
 export async function DELETE(request, { params }) {
     await dbConnect();
-
+    
+    // Auth check outside try/catch to ensure it runs first
     const authCheck = await requireRole(["admin", "superadmin"])(request);
     if (!authCheck.success) {
         return NextResponse.json(
@@ -160,10 +161,9 @@ export async function DELETE(request, { params }) {
             { status: authCheck.statusCode }
         );
     }
-
+    
+    const { id } = await params; // await params for Next.js 15
     try {
-        const { id } = params;
-
         // 1. Check if category exists
         const category = await Category.findById(id);
         if (!category) {
