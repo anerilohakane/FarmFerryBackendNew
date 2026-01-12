@@ -133,39 +133,17 @@ export async function POST(request) {
 }
 
 
-// // Optional: Add other HTTP methods if needed
-// export async function GET() {
-//   return NextResponse.json(
-//     { 
-//       success: false, 
-//       message: "Method not allowed" 
-//     },
-//     { status: 405 }
-//   );
-// }
 
-// export async function PUT() {
-//   return NextResponse.json(
-//     { 
-//       success: false, 
-//       message: "Method not allowed" 
-//     },
-//     { status: 405 }
-//   );
-// }
-
-// export async function DELETE() {
-//   return NextResponse.json(
-//     { 
-//       success: false, 
-//       message: "Method not allowed" 
-//     },
-//     { status: 405 }
-//   );
-// }
-
-
-
+export async function OPTIONS() {
+  return new NextResponse(null, {
+    status: 200,
+    headers: {
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+      "Access-Control-Allow-Headers": "Content-Type, Authorization",
+    },
+  });
+}
 // import Supplier from "@/models/Supplier";
 // import { NextResponse } from "next/server";
 // import connectDB from "@/lib/connectDB";
