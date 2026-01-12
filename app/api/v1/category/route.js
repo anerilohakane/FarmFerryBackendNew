@@ -53,11 +53,12 @@ export async function GET(request) {
     }
 }
 
+import cloudinary from "@/lib/cloudinary";
+
 export async function POST(request) {
     await dbConnect();
 
     // 1. Authenticate & Authorize (Admin only)
-    // Assuming 'admin' and 'superadmin' can create categories
     const authCheck = await requireRole(["admin", "superadmin"])(request);
     if (!authCheck.success) {
         return NextResponse.json(
@@ -67,10 +68,16 @@ export async function POST(request) {
     }
 
     try {
-        const body = await request.json();
+        const formData = await request.formData();
+        
+        const name = formData.get('name');
+        const description = formData.get('description');
+        const isActive = formData.get('isActive') === 'true';
+        const parent = formData.get('parent');
+        const imageFile = formData.get('image');
 
         // 2. Validation
-        if (!body.name) {
+        if (!name) {
             return NextResponse.json(
                 { success: false, error: "Category name is required" },
                 { status: 400 }
@@ -79,7 +86,7 @@ export async function POST(request) {
 
         // Check for duplicate name
         const existing = await Category.findOne({
-            name: { $regex: new RegExp(`^${body.name}$`, "i") }
+            name: { $regex: new RegExp(`^${name}$`, "i") }
         });
 
         if (existing) {
@@ -90,8 +97,8 @@ export async function POST(request) {
         }
 
         // Validate Parent
-        if (body.parent) {
-            const parentCat = await Category.findById(body.parent);
+        if (parent) {
+            const parentCat = await Category.findById(parent);
             if (!parentCat) {
                 return NextResponse.json(
                     { success: false, error: "Parent category not found" },
@@ -100,9 +107,35 @@ export async function POST(request) {
             }
         }
 
+        // Image Upload
+        let imageData = {};
+        if (imageFile && typeof imageFile !== 'string') {
+             const arrayBuffer = await imageFile.arrayBuffer();
+             const buffer = Buffer.from(arrayBuffer);
+             const fileBase64 = `data:${imageFile.type};base64,${buffer.toString('base64')}`;
+
+             const uploadResponse = await new Promise((resolve, reject) => {
+                 cloudinary.uploader.upload(fileBase64, {
+                     folder: "categories",
+                     resource_type: "image"
+                 }, (error, result) => {
+                     if (error) reject(error);
+                     else resolve(result);
+                 });
+             });
+             imageData = {
+                 url: uploadResponse.secure_url,
+                 publicId: uploadResponse.public_id
+             };
+        }
+
         // 3. Create
         const category = await Category.create({
-            ...body,
+            name,
+            description,
+            isActive,
+            parent: parent || null,
+            image: imageData,
             createdBy: authCheck.user._id
         });
 
