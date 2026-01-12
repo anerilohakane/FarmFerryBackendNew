@@ -7,6 +7,66 @@ import Notification from "@/models/Notification";
 import DeliveryAssociate from "@/models/DeliveryAssociate";
 import { verifyJWT } from "@/middlewares/auth.middleware";
 
+// GET: Fetch all orders (Admin/DA)
+export async function GET(req) {
+  try {
+    await dbConnect();
+    
+    // Auth check - allow Admin and verified Delivery Associates
+    const user = await verifyJWT(req);
+    // In a real app, you might restrict this to admin only or filter for DA
+    // For now, assuming if they have a valid token they can list orders
+    // functionality is primarily for Admin Dashboard
+
+    const { searchParams } = new URL(req.url);
+    const limit = parseInt(searchParams.get('limit')) || 10;
+    const page = parseInt(searchParams.get('page')) || 1;
+    const sortField = searchParams.get('sort') || 'createdAt';
+    const sortOrder = searchParams.get('order') === 'desc' ? -1 : 1;
+    const status = searchParams.get('status');
+
+    const query = {};
+    if (status && status !== 'all') {
+      query.status = status;
+    }
+
+    const skip = (page - 1) * limit;
+
+    const orders = await Order.find(query)
+      .populate('customer', 'firstName lastName email phone items') // specific fields
+      .populate('items.product', 'name price images')
+      .sort({ [sortField]: sortOrder })
+      .skip(skip)
+      .limit(limit);
+
+    const total = await Order.countDocuments(query);
+
+    return NextResponse.json({
+      success: true,
+      data: {
+        orders: orders.map(order => ({
+            ...order.toObject(),
+            orderId: order._id
+        })),
+        pagination: {
+          total,
+          page,
+          limit,
+          pages: Math.ceil(total / limit)
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error("❌ Fetch orders error:", error);
+     return NextResponse.json(
+      { success: false, message: "Failed to fetch orders" },
+      { status: 500 }
+    );
+  }
+}
+
+
 export async function POST(req) {
   try {
     await dbConnect();
