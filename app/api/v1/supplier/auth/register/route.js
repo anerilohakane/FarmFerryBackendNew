@@ -5,7 +5,7 @@
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/connectDB";
 import Supplier from "@/models/Supplier";
-import bcrypt from "bcrypt";
+import bcrypt from "bcryptjs";
 
 
 export async function POST(request) {
@@ -70,16 +70,13 @@ export async function POST(request) {
       );
     }
 
-    // Hash password (schema has no pre-save hook)
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    // Create new supplier
+    // Create new supplier (password will be hashed by pre-save hook)
     const supplier = new Supplier({
       ownerName: ownerName.trim(),
       email: email.toLowerCase().trim(),
       phone: phone.trim(),
       businessName: businessName.trim(),
-      password: hashedPassword,
+      password: password, 
       role: "supplier",
       status: "pending",
       lastLogin: new Date(),
