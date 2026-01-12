@@ -1,0 +1,18 @@
+{
+  "status": 201,
+  "body": {
+    "success": true,
+    "message": "Supplier registered successfully",
+    "data": {
+      "_id": "6964b72365da6b66946dc3e2",
+      "ownerName": "Test Owner mamux",
+      "email": "testsuppliermamux@example.com",
+      "phone": "9424072899",
+      "businessName": "Test Business mamux",
+      "role": "supplier",
+      "status": "pending",
+      "createdAt": "2026-01-12T08:56:03.188Z",
+      "updatedAt": "2026-01-12T08:56:03.188Z"
+    }
+  }
+}
