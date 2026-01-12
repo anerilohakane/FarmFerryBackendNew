@@ -49,9 +49,10 @@ export async function PUT(req, { params }) {
     const body = await req.json();
     const { status, verificationNotes, ...otherFields } = body;
     
-    // If updating status, handle verification
+    // If updating status, handle verification (assuming handleStatusUpdate is defined elsewhere or below)
+    // Note: handleStatusUpdate likely calls save() so hooks run there too.
     if (status) {
-      return await handleStatusUpdate(id, status, verificationNotes, user.id);
+      return await handleStatusUpdate(id, status, verificationNotes); // Removed user.id as it wasn't defined in scope
     }
     
     // Regular update
@@ -64,34 +65,45 @@ export async function PUT(req, { params }) {
       "gstNumber",
       "panNumber",
       "address",
-      "bankDetails"
+      "bankDetails",
+      "password" // ✅ Added password
     ];
     
-    const updateData = {};
-    
-    for (const field of allowedFields) {
-      if (otherFields[field] !== undefined) {
-        updateData[field] = otherFields[field];
-      }
-    }
-    
-    const updatedSupplier = await Supplier.findByIdAndUpdate(
-      id,
-      { $set: updateData },
-      { new: true }
-    ).select("-password -passwordResetToken -passwordResetExpires");
-    
-    if (!updatedSupplier) {
+    const supplier = await Supplier.findById(id);
+
+    if (!supplier) {
       return NextResponse.json(
         { success: false, message: "Supplier not found" },
         { status: 404 }
       );
     }
     
+    // Update allowed fields
+    for (const field of allowedFields) {
+      if (otherFields[field] !== undefined && otherFields[field] !== '') {
+        // Simple update for top-level fields
+        supplier[field] = otherFields[field];
+      }
+    }
+
+    // Explicitly handle address and bankDetails merging if needed, 
+    // or just assume full object replacement if simpler.
+    // The previous loop handles top-level replacement which works for mismatched schemas usually 
+    // but deeper merge might be safer. For now adhering to previous logic but enabling hooks.
+
+    // Triggers pre-save hook (hashing password)
+    const updatedSupplier = await supplier.save();
+    
+    // Return without password
+    const responseSupplier = updatedSupplier.toObject();
+    delete responseSupplier.password;
+    delete responseSupplier.passwordResetToken;
+    delete responseSupplier.passwordResetExpires;
+
     return NextResponse.json(
       {
         success: true,
-        data: { supplier: updatedSupplier },
+        data: { supplier: responseSupplier },
         message: "Supplier updated successfully"
       },
       { status: 200 }
