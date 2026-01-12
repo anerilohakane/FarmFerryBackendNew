@@ -4,15 +4,19 @@
     "success": true,
     "message": "Supplier registered successfully",
     "data": {
-      "_id": "6964b72365da6b66946dc3e2",
-      "ownerName": "Test Owner mamux",
-      "email": "testsuppliermamux@example.com",
-      "phone": "9424072899",
-      "businessName": "Test Business mamux",
-      "role": "supplier",
-      "status": "pending",
-      "createdAt": "2026-01-12T08:56:03.188Z",
-      "updatedAt": "2026-01-12T08:56:03.188Z"
+      "user": {
+        "_id": "6964bece06e5f6aad5f7bd2e",
+        "ownerName": "Test Owner z4fqm",
+        "email": "testsupplierz4fqm@example.com",
+        "phone": "9499305314",
+        "businessName": "Test Business z4fqm",
+        "role": "supplier",
+        "status": "pending",
+        "createdAt": "2026-01-12T09:28:46.080Z",
+        "updatedAt": "2026-01-12T09:28:46.080Z"
+      },
+      "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY5NjRiZWNlMDZlNWY2YWFkNWY3YmQyZSIsInJvbGUiOiJzdXBwbGllciIsImlhdCI6MTc2ODIxMDEyNiwiZXhwIjoxNzY4Mjk2NTI2fQ.0I1q7AE2TaFXs2fcbS-sMavsFbd2B5hj7pTFla87LJc",
+      "refreshToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY5NjRiZWNlMDZlNWY2YWFkNWY3YmQyZSIsImlhdCI6MTc2ODIxMDEyNiwiZXhwIjoxNzY4ODE0OTI2fQ.n2Hv2qDtQPOEZfbCUuaRpkYmdXoBYNgIes5FagaAZ4c"
     }
   }
 }

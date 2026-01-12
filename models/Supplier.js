@@ -169,8 +169,19 @@ supplierSchema.methods.isPasswordCorrect = async function (password) {
 supplierSchema.methods.generateAccessToken = function () {
   return jwt.sign(
     { id: this._id, role: this.role },
-    process.env.JWT_ACCESS_SECRET,
-    { expiresIn: "1d" }
+    process.env.JWT_ACCESS_SECRET || "fallback_access_token_secret",
+    { expiresIn: process.env.JWT_ACCESS_EXPIRY || "1d" }
+  );
+};
+
+/* ---------------------------------
+   Generate Refresh Token
+---------------------------------- */
+supplierSchema.methods.generateRefreshToken = function () {
+  return jwt.sign(
+    { id: this._id },
+    process.env.REFRESH_TOKEN_SECRET || "fallback_refresh_token_secret",
+    { expiresIn: process.env.REFRESH_TOKEN_EXPIRY || "7d" }
   );
 };
 
