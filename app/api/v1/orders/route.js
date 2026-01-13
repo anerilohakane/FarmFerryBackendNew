@@ -5,7 +5,14 @@ import Product from "@/models/Product";
 import Customer from "@/models/Customer";
 import Notification from "@/models/Notification";
 import DeliveryAssociate from "@/models/DeliveryAssociate";
-import { verifyJWT } from "@/middlewares/auth.middleware";
+import { corsHandler } from "@/utils/corsHandler";
+
+export async function OPTIONS(req) {
+  return new Response(null, {
+    status: 204,
+    headers: corsHandler(req),
+  });
+}
 
 // GET: Fetch all orders (Admin/DA)
 export async function GET(req) {

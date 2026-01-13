@@ -3,326 +3,127 @@ import dbConnect from "@/lib/connectDB";
 import Category from "@/models/Category";
 import Product from "@/models/Product";
 import Notification from "@/models/Notification";
-import { authenticateSupplier } from "@/middlewares/auth.middleware";
+import { authenticate } from "@/middlewares/auth.middleware"; // Generic auth
+import cloudinary from "@/lib/cloudinary";
 
-/** Validate ObjectId */
 function isValidObjectIdString(id) {
   return typeof id === "string" && /^[0-9a-fA-F]{24}$/.test(id);
 }
 
-/* -------------------------------------------------------
-   GET /api/products/:id
-------------------------------------------------------- */
+// GET SINGLE
 export async function GET(request, { params }) {
   await dbConnect();
-
-  const token = request.headers.get('authorization')?.replace('Bearer ', '');
-    
-    if (!token) {
-      return NextResponse.json(
-        { success: false, message: "Authentication required" },
-        { status: 401 }
-      );
-    }
-
-    const user = authenticateSupplier(token);
-  if (!user || !["admin", "supplier"].includes(user.role)) {
-    return NextResponse.json(
-      { success: false, error: "Unauthorized" },
-      { status: 401 }
-    );
-  }
-
-  // if supplier, force supplierId
-  if (user.role === "supplier") {
-    body.supplierId = user.supplierId;
-  }
-
   try {
-    const { id } = await params;
-
-    if (!id) {
-      return NextResponse.json(
-        { success: false, error: "Product id missing" },
-        { status: 400 }
-      );
-    }
-
-    let product = null;
-
-    if (isValidObjectIdString(id)) {
-      product = await Product.findById(id).lean();
-    }
-
-    if (!product) {
-      product = await Product.findOne({
-        $or: [{ slug: id }, { sku: id }],
-      }).lean();
-    }
-
-    if (!product) {
-      return NextResponse.json(
-        { success: false, error: "Product not found" },
-        { status: 404 }
-      );
-    }
-
-    let category = null;
-    if (product.categoryId && isValidObjectIdString(String(product.categoryId))) {
-      const cat = await Category.findById(product.categoryId)
-        .select("_id name slug image parent")
-        .lean();
-
-      if (cat) {
-        category = {
-          id: String(cat._id),
-          name: cat.name,
-          slug: cat.slug ?? null,
-          image: cat.image ?? null,
-          parent: cat.parent ?? null,
-        };
-      }
-    }
-
-    return NextResponse.json({
-      success: true,
-      data: { ...product, category },
-    });
+      const { id } = await params;
+      const product = await Product.findById(id).populate('categoryId').populate('supplierId');
+      if (!product) return NextResponse.json({ success: false, error: "Product not found" }, { status: 404 });
+      return NextResponse.json({ success: true, data: product });
   } catch (err) {
-    console.error("GET /api/products/[id] error:", err);
-    return NextResponse.json(
-      { success: false, error: "Server error" },
-      { status: 500 }
-    );
+      return NextResponse.json({ success: false, error: err.message }, { status: 500 });
   }
 }
 
-/* -------------------------------------------------------
-   PUT /api/products/:id
-------------------------------------------------------- */
-export async function PUT(request, { params }) {
-  await dbConnect();
-
-  const token = request.headers.get('authorization')?.replace('Bearer ', '');
-    
-    if (!token) {
-      return NextResponse.json(
-        { success: false, message: "Authentication required" },
-        { status: 401 }
-      );
-    }
-
-    const user = authenticateSupplier(token);
-  if (!user || !["admin", "supplier"].includes(user.role)) {
-    return NextResponse.json(
-      { success: false, error: "Unauthorized" },
-      { status: 401 }
-    );
-  }
-
-  // if supplier, force supplierId
-  if (user.role === "supplier") {
-    body.supplierId = user.supplierId;
-  }
-
-  try {
-    const { id } = await params;
-
-    if (!isValidObjectIdString(id)) {
-      return NextResponse.json(
-        { success: false, error: "Invalid product id" },
-        { status: 400 }
-      );
-    }
-
-    const body = await request.json();
-
-    const updated = await Product.findByIdAndUpdate(
-  id,
-  body,
-  {
-    new: true,
-    runValidators: true,
-  }
-);
-
-
-    if (!updated) {
-      return NextResponse.json(
-        { success: false, error: "Product not found" },
-        { status: 404 }
-      );
-    }
-
-    return NextResponse.json({ success: true, data: updated });
-
-    /* ------------------ NOTIFICATION CHECK ------------------ */
-    if (updated.stockQuantity <= 10) {
-      const recentNotif = await Notification.findOne({
-        recipient: user.supplierId || user._id,
-        referenceId: updated._id,
-        type: "LOW_STOCK",
-        createdAt: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) }
-      });
-
-      if (!recentNotif) {
-        await Notification.create({
-          recipient: user.supplierId || user._id,
-          recipientType: "supplier",
-          title: "Low Stock Alert",
-          message: `Your product "${updated.name}" is running low on stock (${updated.stockQuantity} remaining).`,
-          type: "LOW_STOCK",
-          referenceId: updated._id
-        });
-      }
-    }
-  } catch (err) {
-    console.error("PUT /api/products/[id] error:", err);
-    return NextResponse.json(
-      { success: false, error: err.message },
-      { status: 500 }
-    );
-  }
-}
-
-/* -------------------------------------------------------
-   PATCH /api/products/:id
-------------------------------------------------------- */
+// UPDATE (PUT/PATCH merged logic for simplicity)
 export async function PATCH(request, { params }) {
-  await dbConnect();
-
-
-  const token = request.headers.get('authorization')?.replace('Bearer ', '');
-    
-    if (!token) {
-      return NextResponse.json(
-        { success: false, message: "Authentication required" },
-        { status: 401 }
-      );
-    }
-
-    const user = authenticateSupplier(token);
-  if (!user || !["admin", "supplier"].includes(user.role)) {
-    return NextResponse.json(
-      { success: false, error: "Unauthorized" },
-      { status: 401 }
-    );
-  }
-
-  // if supplier, force supplierId
-  if (user.role === "supplier") {
-    body.supplierId = user.supplierId;
-  }
-
-  try {
+    await dbConnect();
     const { id } = await params;
 
-    if (!isValidObjectIdString(id)) {
-      return NextResponse.json(
-        { success: false, error: "Invalid product id" },
-        { status: 400 }
-      );
+    // Auth
+    const authResult = await authenticate(request);
+    if (!authResult.success) return NextResponse.json({ success: false, error: authResult.error }, { status: authResult.statusCode });
+    const { user, role } = authResult;
+    
+    if (!['admin', 'superadmin', 'supplier'].includes(role)) {
+        return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 403 });
     }
 
-    const body = await request.json();
+    try {
+        let updateData = {};
+        
+        const contentType = request.headers.get("content-type") || "";
+        if (contentType.includes("multipart/form-data")) {
+            const formData = await request.formData();
+            updateData = {
+                name: formData.get('name'),
+                description: formData.get('description'),
+                price: formData.has('price') ? parseFloat(formData.get('price')) : undefined,
+                stockQuantity: formData.has('stockQuantity') ? parseInt(formData.get('stockQuantity')) : undefined,
+                categoryId: formData.get('categoryId'),
+                isActive: formData.has('status') ? formData.get('status') === 'Active' : undefined
+            };
+            
+            // Remove undefined
+            Object.keys(updateData).forEach(key => updateData[key] === undefined && delete updateData[key]);
+            
+            // Images
+            const newFiles = formData.getAll('images');
+            if (newFiles && newFiles.length > 0 && typeof newFiles[0] !== 'string') {
+                 const uploadedImages = [];
+                 for (const file of newFiles) {
+                    const arrayBuffer = await file.arrayBuffer();
+                    const buffer = Buffer.from(arrayBuffer);
+                    const base64 = `data:${file.type};base64,${buffer.toString('base64')}`;
+                     const uploadRes = await new Promise((resolve, reject) => {
+                         cloudinary.uploader.upload(base64, { folder: "products", resource_type: "image" }, (e, r) => e ? reject(e) : resolve(r));
+                     });
+                     uploadedImages.push({ url: uploadRes.secure_url, publicId: uploadRes.public_id, isMain: uploadedImages.length === 0 });
+                 }
+                 updateData.images = uploadedImages;
+            }
+        } else {
+            updateData = await request.json();
+            // Secure fields if Supplier
+            if (role === 'supplier') {
+               delete updateData.supplierId; // Cannot change owner
+            }
+        }
+        
+        // Check ownership if Supplier
+        if (role === 'supplier') {
+            const prod = await Product.findById(id);
+            if (!prod) return NextResponse.json({ success: false, error: "Product not found" }, { status: 404 });
+            if (String(prod.supplierId) !== String(user._id)) {
+                return NextResponse.json({ success: false, error: "Unauthorized access to this product" }, { status: 403 });
+            }
+        }
 
-    const updated = await Product.findByIdAndUpdate(
-      id,
-      { $set: body },
-      { new: true, runValidators: true }
-    );
-
-    if (!updated) {
-      return NextResponse.json(
-        { success: false, error: "Product not found" },
-        { status: 404 }
-      );
+        const updated = await Product.findByIdAndUpdate(id, updateData, { new: true, runValidators: true });
+        if (!updated) return NextResponse.json({ success: false, error: "Product not found" }, { status: 404 });
+        
+        return NextResponse.json({ success: true, data: updated });
+        
+    } catch (err) {
+        return NextResponse.json({ success: false, error: err.message }, { status: 500 });
     }
-
-    return NextResponse.json({ success: true, data: updated });
-
-    /* ------------------ NOTIFICATION CHECK ------------------ */
-    if (updated.stockQuantity <= 10) {
-      const recentNotif = await Notification.findOne({
-        recipient: user.supplierId || user._id,
-        referenceId: updated._id,
-        type: "LOW_STOCK",
-        createdAt: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) }
-      });
-
-      if (!recentNotif) {
-        await Notification.create({
-          recipient: user.supplierId || user._id,
-          recipientType: "supplier",
-          title: "Low Stock Alert",
-          message: `Your product "${updated.name}" is running low on stock (${updated.stockQuantity} remaining).`,
-          type: "LOW_STOCK",
-          referenceId: updated._id
-        });
-      }
-    }
-  } catch (err) {
-    console.error("PATCH /api/products/[id] error:", err);
-    return NextResponse.json(
-      { success: false, error: err.message },
-      { status: 500 }
-    );
-  }
 }
 
-/* -------------------------------------------------------
-   DELETE /api/products/:id
-------------------------------------------------------- */
 export async function DELETE(request, { params }) {
-  await dbConnect();
-
-  const token = request.headers.get('authorization')?.replace('Bearer ', '');
-    
-    if (!token) {
-      return NextResponse.json(
-        { success: false, message: "Authentication required" },
-        { status: 401 }
-      );
-    }
-
-    const user = authenticateSupplier(token);
-  if (!user || !["admin", "supplier"].includes(user.role)) {
-    return NextResponse.json(
-      { success: false, error: "Unauthorized" },
-      { status: 401 }
-    );
-  }
-
-  // if supplier, force supplierId
-  if (user.role === "supplier") {
-    body.supplierId = user.supplierId;
-  }
-
-  try {
+    await dbConnect();
     const { id } = await params;
+    
+    // Auth
+    const authResult = await authenticate(request);
+    if (!authResult.success) return NextResponse.json({ success: false, error: authResult.error }, { status: authResult.statusCode });
+    const { user, role } = authResult;
 
-    if (!isValidObjectIdString(id)) {
-      return NextResponse.json(
-        { success: false, error: "Invalid product id" },
-        { status: 400 }
-      );
+    if (!['admin', 'superadmin', 'supplier'].includes(role)) {
+         return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 403 });
     }
 
-    const deleted = await Product.findByIdAndDelete(id);
-
-    if (!deleted) {
-      return NextResponse.json(
-        { success: false, error: "Product not found" },
-        { status: 404 }
-      );
+    try {
+        if (role === 'supplier') {
+            const prod = await Product.findById(id);
+            if (!prod) return NextResponse.json({ success: false, error: "Product not found" }, { status: 404 });
+            if (String(prod.supplierId) !== String(user._id)) {
+                return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 403 });
+            }
+        }
+        
+        const deleted = await Product.findByIdAndDelete(id);
+        if (!deleted) return NextResponse.json({ success: false, error: "Not found" }, { status: 404 });
+        
+        return NextResponse.json({ success: true, message: "Deleted" });
+    } catch (err) {
+        return NextResponse.json({ success: false, error: err.message }, { status: 500 });
     }
-
-    return NextResponse.json({ success: true, data: deleted });
-  } catch (err) {
-    console.error("DELETE /api/products/[id] error:", err);
-    return NextResponse.json(
-      { success: false, error: err.message },
-      { status: 500 }
-    );
-  }
 }
