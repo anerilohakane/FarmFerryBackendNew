@@ -16,7 +16,7 @@ export const verifyJWT = async (token) => {
     }
 
     // Verify token
-    const secret = process.env.JWT_ACCESS_SECRET || process.env.JWT_SECRET || "farmferry_super_secret_key_2026";
+    const secret = process.env.JWT_ACCESS_SECRET || "fallback_access_token_secret";
     console.log("Middleware Auth - Secret Start:", secret.substring(0, 3));
     console.log("Middleware Auth - Token Received:", token);
     
