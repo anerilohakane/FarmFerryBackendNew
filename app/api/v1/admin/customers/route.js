@@ -1,12 +1,26 @@
 import { NextResponse } from 'next/server';
 import dbConnect from '@/lib/connectDB';
 import Customer from '@/models/Customer';
+import { authenticate } from "@/middlewares/auth.middleware";
+import { corsHandler } from "@/utils/corsHandler";
+
+export async function OPTIONS(req) {
+  return new Response(null, {
+    status: 204,
+    headers: corsHandler(req),
+  });
+}
 
 // GET - Get all customers
 export async function GET(req) {
   try {
     
     await dbConnect();
+
+    const authResult = await authenticate(req);
+    if (!authResult.success) {
+      return NextResponse.json({ success: false, error: authResult.error }, { status: authResult.statusCode });
+    }
     
     const { searchParams } = new URL(req.url);
     const search = searchParams.get('search');
