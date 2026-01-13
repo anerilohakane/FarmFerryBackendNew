@@ -1,13 +1,20 @@
-import { NextResponse } from "next/server";
-import mongoose from "mongoose";
-import dbConnect from "@/lib/connectDB";
-import Order from "@/models/Order";
-import { verifyJWT } from "@/middlewares/auth.middleware";
+import { corsHandler } from "@/utils/corsHandler";
+import { authenticate } from "@/middlewares/auth.middleware";
+
+export async function OPTIONS(req) {
+  return new Response(null, {
+    status: 204,
+    headers: corsHandler(req),
+  });
+}
 
 export async function GET(req, context) {
   try {
     await dbConnect();
-    await verifyJWT(req);
+    const authResult = await authenticate(req);
+    if (!authResult.success) {
+      return NextResponse.json({ success: false, error: authResult.error }, { status: authResult.statusCode });
+    }
 
     const { id } = await context.params;
 
@@ -20,8 +27,14 @@ export async function GET(req, context) {
     }
 
     const order = await Order.findById(id)
-      .populate("items.product supplier customer");
-
+      .populate("items.product supplier customer")
+      .populate({
+        path: "deliveryAssociate",
+        populate: { path: "associate", select: "name phone email" }
+      }); 
+      // Populating delivery associate details if it refers to DeliveryAssociate model
+      // Note: Order model schema for deliveryAssociate might be ObjectId ref DeliveryAssociate
+      
     if (!order) {
       return NextResponse.json(
         { success: false, message: "Order not found" },
@@ -42,7 +55,11 @@ export async function GET(req, context) {
 export async function PATCH(req, context) {
   try {
     await dbConnect();
-    const user = await verifyJWT(req);
+    const authResult = await authenticate(req);
+    if (!authResult.success) {
+      return NextResponse.json({ success: false, error: authResult.error }, { status: authResult.statusCode });
+    }
+    const user = authResult.user;
 
     // ✅ UNWRAP params
     const { id } = await context.params;

@@ -2,13 +2,29 @@ import { NextResponse } from 'next/server';
 import dbConnect from '@/lib/connectDB';
 import Admin from '@/models/Admin';
 
+import { corsHandler } from "@/utils/corsHandler";
+import { authenticate } from "@/middlewares/auth.middleware";
+
+export async function OPTIONS(req) {
+  return new Response(null, {
+    status: 204,
+    headers: corsHandler(req),
+  });
+}
+
 // GET - Get admin profile
 export async function GET(req) {
   try {
-    
     await dbConnect();
     
-    const admin = await Admin.findById(user.id).select("-password -passwordResetToken -passwordResetExpires");
+    // Auth check
+    const authResult = await authenticate(req);
+    if (!authResult.success) {
+        return NextResponse.json({ success: false, error: authResult.error }, { status: authResult.statusCode });
+    }
+    const user = authResult.user;
+
+    const admin = await Admin.findById(user._id).select("-password -passwordResetToken -passwordResetExpires");
     
     if (!admin) {
       return NextResponse.json(
@@ -42,8 +58,14 @@ export async function GET(req) {
 // PUT - Update admin profile
 export async function PUT(req) {
   try {
-    
     await dbConnect();
+
+    // Auth check
+    const authResult = await authenticate(req);
+    if (!authResult.success) {
+        return NextResponse.json({ success: false, error: authResult.error }, { status: authResult.statusCode });
+    }
+    const user = authResult.user;
     
     const body = await req.json();
     const { name, phone, location, company, avatar, notificationPreferences } = body;
@@ -58,7 +80,7 @@ export async function PUT(req) {
     if (notificationPreferences) updateFields.notificationPreferences = notificationPreferences;
     
     const updatedAdmin = await Admin.findByIdAndUpdate(
-      user.id,
+      user._id,
       { $set: updateFields },
       { new: true }
     ).select("-password -passwordResetToken -passwordResetExpires");

@@ -2,13 +2,26 @@ import { NextResponse } from 'next/server';
 import dbConnect from '@/lib/connectDB';
 import DeliveryAssociate from '@/models/DeliveryAssociate';
 
+import { corsHandler } from "@/utils/corsHandler";
+import { authenticate } from "@/middlewares/auth.middleware";
+
+export async function OPTIONS(req) {
+  return new Response(null, {
+    status: 204,
+    headers: corsHandler(req),
+  });
+}
+
 // PUT - Update delivery associate
-export async function PUT(req, { params }) {
+export async function PUT(req, context) {
   try {
-    
     await dbConnect();
-    
-    const { id } = params;
+    const authResult = await authenticate(req);
+    if (!authResult.success) {
+      return NextResponse.json({ success: false, error: authResult.error }, { status: authResult.statusCode });
+    }
+
+    const { id } = await context.params;
     const body = await req.json();
     const { name, email, phone, status, vehicleType, address, specialization } = body;
     
@@ -57,13 +70,17 @@ export async function PUT(req, { params }) {
 }
 
 // DELETE - Delete delivery associate
-export async function DELETE(req, { params }) {
+export async function DELETE(req, context) {
   try {
-    
     await dbConnect();
+    const authResult = await authenticate(req);
+    if (!authResult.success) {
+      return NextResponse.json({ success: false, error: authResult.error }, { status: authResult.statusCode });
+    }
     
-    const { id } = params;
+    const { id } = await context.params;
     const deleted = await DeliveryAssociate.findByIdAndDelete(id);
+
     
     if (!deleted) {
       return NextResponse.json(

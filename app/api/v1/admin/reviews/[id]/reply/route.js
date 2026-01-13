@@ -2,13 +2,27 @@ import { NextResponse } from 'next/server';
 import dbConnect from '@/lib/connectDB';
 import Review from '@/models/Review';
 
+import { corsHandler } from "@/utils/corsHandler";
+import { authenticate } from "@/middlewares/auth.middleware";
+
+export async function OPTIONS(req) {
+  return new Response(null, {
+    status: 204,
+    headers: corsHandler(req),
+  });
+}
+
 // POST - Reply to review
-export async function POST(req, { params }) {
+export async function POST(req, context) {
   try {
-    
     await dbConnect();
-    
-    const { id } = params;
+    const authResult = await authenticate(req);
+    if (!authResult.success) {
+        return NextResponse.json({ success: false, error: authResult.error }, { status: authResult.statusCode });
+    }
+    const user = authResult.user;
+
+    const { id } = await context.params;
     const body = await req.json();
     const { content } = body;
     
@@ -31,8 +45,8 @@ export async function POST(req, { params }) {
     review.reply = {
       content: content.trim(),
       createdAt: new Date(),
-      createdBy: user.id,
-      createdByModel: "Admin"
+      createdBy: user._id,
+      createdByModel: "Admin" // Simplified
     };
     
     await review.save();

@@ -5,14 +5,93 @@ import Product from "@/models/Product";
 import Customer from "@/models/Customer";
 import Notification from "@/models/Notification";
 import DeliveryAssociate from "@/models/DeliveryAssociate";
-import { verifyJWT } from "@/middlewares/auth.middleware";
+import Admin from "@/models/Admin";
+import { corsHandler } from "@/utils/corsHandler";
+import { authenticate } from "@/middlewares/auth.middleware";
+
+export async function OPTIONS(req) {
+  return new Response(null, {
+    status: 204,
+    headers: corsHandler(req),
+  });
+}
+
+// GET: Fetch all orders (Admin/DA)
+export async function GET(req) {
+  try {
+    await dbConnect();
+    
+    // Auth check
+    const authResult = await authenticate(req);
+    if (!authResult.success) {
+      return NextResponse.json({ success: false, error: authResult.error }, { status: authResult.statusCode });
+    }
+    const user = authResult.user; 
+    // In a real app, you might restrict this to admin only or filter for DA
+    // For now, assuming if they have a valid token they can list orders
+    // functionality is primarily for Admin Dashboard
+
+    const { searchParams } = new URL(req.url);
+    const limit = parseInt(searchParams.get('limit')) || 10;
+    const page = parseInt(searchParams.get('page')) || 1;
+    const sortField = searchParams.get('sort') || 'createdAt';
+    const sortOrder = searchParams.get('order') === 'desc' ? -1 : 1;
+    const status = searchParams.get('status');
+
+    const query = {};
+    if (status && status !== 'all') {
+      query.status = status;
+    }
+
+    const skip = (page - 1) * limit;
+
+    const orders = await Order.find(query)
+      .populate('customer', 'firstName lastName email phone items') // specific fields
+      .populate('items.product', 'name price images')
+      .sort({ [sortField]: sortOrder })
+      .skip(skip)
+      .limit(limit);
+
+    const total = await Order.countDocuments(query);
+
+    return NextResponse.json({
+      success: true,
+      data: {
+        orders: orders.map(order => ({
+            ...order.toObject(),
+            orderId: order._id
+        })),
+        pagination: {
+          total,
+          page,
+          limit,
+          pages: Math.ceil(total / limit)
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error("❌ Fetch orders error:", error);
+     return NextResponse.json(
+      { success: false, message: "Failed to fetch orders" },
+      { status: 500 }
+    );
+  }
+}
+
+
+
 
 export async function POST(req) {
   try {
     await dbConnect();
 
     // 🔐 JWT user (User collection)
-    const user = await verifyJWT(req);
+    const authResult = await authenticate(req);
+    if (!authResult.success) {
+        return NextResponse.json({ success: false, error: authResult.error }, { status: authResult.statusCode });
+    }
+    const user = authResult.user;
 
     const body = await req.json();
     const {
@@ -65,9 +144,13 @@ export async function POST(req) {
       );
     }
 
-    /* ------------------ LOCK PRODUCT PRICES ------------------ */
+    /* ------------------ LOCK PRODUCT PRICES AND DEDUCT STOCK ------------------ */
 
     const orderItems = [];
+    const notificationPromises = [];
+    
+    // Fetch an admin for notifications
+    const adminRecipient = await Admin.findOne().select('_id'); 
 
     for (const item of items) {
       const product = await Product.findById(item.product);
@@ -89,7 +172,45 @@ export async function POST(req) {
         discountedPrice,
         variation: item.variation || undefined
       });
+      
+      // Deduct stock
+      if (product.quantity >= item.quantity) {
+          product.quantity -= item.quantity;
+          product.totalSold = (product.totalSold || 0) + item.quantity;
+          await product.save();
+          
+          // Check for Low Stock / Out of Stock
+          if (adminRecipient) {
+              if (product.quantity === 0) {
+                  notificationPromises.push(Notification.create({
+                      recipient: adminRecipient._id,
+                      recipientType: 'admin',
+                      title: 'Product Out of Stock',
+                      message: `Product "${product.name}" is now out of stock!`,
+                      type: 'out_of_stock',
+                      referenceId: product._id
+                  }));
+              } else if (product.quantity <= 10) {
+                  notificationPromises.push(Notification.create({
+                      recipient: adminRecipient._id,
+                      recipientType: 'admin',
+                      title: 'Low Stock Alert',
+                      message: `Product "${product.name}" is running low (${product.quantity} remaining).`,
+                      type: 'low_stock',
+                      referenceId: product._id
+                  }));
+              }
+          }
+      } else {
+          return NextResponse.json(
+            { success: false, message: `Insufficient stock for ${product.name}` },
+            { status: 400 }
+          );
+      }
     }
+    
+    // Execute notification creation
+    await Promise.all(notificationPromises);
 
     /* ------------------ CREATE ORDER ------------------ */
 
@@ -119,6 +240,18 @@ export async function POST(req) {
       }));
       
       await Notification.insertMany(notifications);
+    }
+    
+    // 🔔 Notify Admin about New Order
+    if (adminRecipient) {
+        await Notification.create({
+            recipient: adminRecipient._id,
+            recipientType: 'admin',
+            title: 'New Order Placed',
+            message: `New order #${order._id.toString().slice(-6)} placed by ${customer.firstName} ${customer.lastName}.`,
+            type: 'new_order',
+            referenceId: order._id
+        });
     }
 
     return NextResponse.json(

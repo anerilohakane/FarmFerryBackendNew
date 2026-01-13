@@ -25,7 +25,8 @@ const supplierSchema = new mongoose.Schema(
     password: {
       type: String,
       required: [true, "Password is required"],
-      minlength: [6, "Password must be at least 6 characters long"]
+      minlength: [6, "Password must be at least 6 characters long"],
+      select: false
     },
     phone: {
       type: String,
@@ -156,6 +157,43 @@ const supplierSchema = new mongoose.Schema(
 );
 
 
+/* ---------------------------------
+   Hash password before save
+---------------------------------- */
+supplierSchema.pre("save", async function () {
+  if (!this.isModified("password")) return;
+  this.password = await bcrypt.hash(this.password, 10);
+});
+
+/* ---------------------------------
+   Compare password
+---------------------------------- */
+supplierSchema.methods.isPasswordCorrect = async function (password) {
+  return await bcrypt.compare(password, this.password);
+};
+
+/* ---------------------------------
+   Generate JWT
+---------------------------------- */
+supplierSchema.methods.generateAccessToken = function () {
+  return jwt.sign(
+    { id: this._id, role: this.role },
+    process.env.JWT_ACCESS_SECRET || "fallback_access_token_secret",
+    { expiresIn: process.env.JWT_ACCESS_EXPIRY || "1d" }
+  );
+};
+
+/* ---------------------------------
+   Generate Refresh Token
+---------------------------------- */
+supplierSchema.methods.generateRefreshToken = function () {
+  return jwt.sign(
+    { id: this._id },
+    process.env.REFRESH_TOKEN_SECRET || "fallback_refresh_token_secret",
+    { expiresIn: process.env.REFRESH_TOKEN_EXPIRY || "7d" }
+  );
+};
+
 // Prevent model overwrite error in development
 if (mongoose.models.Supplier) {
   delete mongoose.models.Supplier;
@@ -163,77 +201,5 @@ if (mongoose.models.Supplier) {
 
 const Supplier = mongoose.model("Supplier", supplierSchema);
 
-export default Supplier;
-
-// import mongoose from "mongoose";
-// import bcrypt from "bcrypt";
-// import jwt from "jsonwebtoken";
-
-// const supplierSchema = new mongoose.Schema(
-//   {
-//     businessName: { type: String, trim: true },
-//     ownerName: { type: String, trim: true },
-
-//     email: {
-//       type: String,
-//       required: true,
-//       unique: true,
-//       lowercase: true,
-//       trim: true
-//     },
-
-//     password: {
-//       type: String,
-//       required: true,
-//       minlength: 6,
-//       select: false   // 🔐 IMPORTANT
-//     },
-
-//     phone: String,
-
-//     role: {
-//       type: String,
-//       default: "supplier"
-//     },
-
-//     status: {
-//       type: String,
-//       enum: ["pending", "approved", "rejected", "active", "inactive", "blocked"],
-//       default: "pending"
-//     },
-
-//     lastLogin: Date
-//   },
-//   { timestamps: true }
-// );
-
-// /* ---------------------------------
-//    Hash password before save
-// ---------------------------------- */
-// supplierSchema.pre("save", async function (next) {
-//   if (!this.isModified("password")) return next();
-//   this.password = await bcrypt.hash(this.password, 10);
-//   next();
-// });
-
-// /* ---------------------------------
-//    Compare password
-// ---------------------------------- */
-// supplierSchema.methods.isPasswordCorrect = async function (password) {
-//   return await bcrypt.compare(password, this.password);
-// };
-
-// /* ---------------------------------
-//    Generate JWT
-// ---------------------------------- */
-// supplierSchema.methods.generateAccessToken = function () {
-//   return jwt.sign(
-//     { id: this._id, role: this.role },
-//     process.env.JWT_ACCESS_SECRET,,
-//     { expiresIn: "1d" }
-//   );
-// };
-
-// // Prevent model overwrite
-// export default mongoose.models.Supplier ||
-//   mongoose.model("Supplier", supplierSchema);
+// Prevent model overwrite
+export default mongoose.models.Supplier || Supplier;

@@ -2,13 +2,27 @@ import { NextResponse } from 'next/server';
 import dbConnect from '@/lib/connectDB';
 import Review from '@/models/Review';
 
+import { corsHandler } from "@/utils/corsHandler";
+import { authenticate } from "@/middlewares/auth.middleware";
+
+export async function OPTIONS(req) {
+  return new Response(null, {
+    status: 204,
+    headers: corsHandler(req),
+  });
+}
+
 // GET - Get review by ID
-export async function GET(req, { params }) {
+export async function GET(req, context) {
   try {
-    
     await dbConnect();
-    
-    const { id } = params;
+    // Auth check
+    const authResult = await authenticate(req);
+    if (!authResult.success) {
+        return NextResponse.json({ success: false, error: authResult.error }, { status: authResult.statusCode });
+    }
+
+    const { id } = await context.params;
     
     const review = await Review.findById(id)
       .populate("customer", "firstName lastName email profileImage")
@@ -41,13 +55,16 @@ export async function GET(req, { params }) {
   }
 }
 
-// PUT - Update review status
-export async function PUT(req, { params }) {
+// PUT - Update review status or visibility
+export async function PUT(req, context) {
   try {
-    
     await dbConnect();
-    
-    const { id } = params;
+    const authResult = await authenticate(req);
+    if (!authResult.success) {
+        return NextResponse.json({ success: false, error: authResult.error }, { status: authResult.statusCode });
+    }
+
+    const { id } = await context.params;
     const body = await req.json();
     const { status, isVisible } = body;
     
@@ -123,12 +140,16 @@ export async function PUT(req, { params }) {
 }
 
 // DELETE - Delete review
-export async function DELETE(req, { params }) {
+export async function DELETE(req, context) {
   try {
-    
     await dbConnect();
-    
-    const { id } = params;
+    const authResult = await authenticate(req);
+    if (!authResult.success) {
+        return NextResponse.json({ success: false, error: authResult.error }, { status: authResult.statusCode });
+    }
+
+    const { id } = await context.params;
+
     
     const review = await Review.findById(id);
     if (!review) {

@@ -3,16 +3,14 @@ import dbConnect from "@/lib/connectDB";
 import Category from "@/models/Category";
 import Product from "@/models/Product";
 import Notification from "@/models/Notification";
-import { authenticateSupplier } from "@/middlewares/auth.middleware";
+import { authenticate } from "@/middlewares/auth.middleware"; // Generic auth
+import cloudinary from "@/lib/cloudinary";
 
-/** Validate ObjectId */
 function isValidObjectIdString(id) {
   return typeof id === "string" && /^[0-9a-fA-F]{24}$/.test(id);
 }
 
-/* -------------------------------------------------------
-   GET /api/products/:id
-------------------------------------------------------- */
+// GET SINGLE
 export async function GET(request, { params }) {
   await dbConnect();
 
@@ -87,11 +85,7 @@ export async function GET(request, { params }) {
       data: { ...product, category },
     });
   } catch (err) {
-    console.error("GET /api/products/[id] error:", err);
-    return NextResponse.json(
-      { success: false, error: "Server error" },
-      { status: 500 }
-    );
+    return NextResponse.json({ success: false, error: err.message }, { status: 500 });
   }
 }
 
@@ -274,9 +268,6 @@ export async function PATCH(request, { params }) {
   }
 }
 
-/* -------------------------------------------------------
-   DELETE /api/products/:id
-------------------------------------------------------- */
 export async function DELETE(request, { params }) {
   await dbConnect();
 
