@@ -6,6 +6,7 @@ import Customer from "@/models/Customer";
 import Notification from "@/models/Notification";
 import DeliveryAssociate from "@/models/DeliveryAssociate";
 import { corsHandler } from "@/utils/corsHandler";
+import { authenticate } from "@/middlewares/auth.middleware";
 
 export async function OPTIONS(req) {
   return new Response(null, {
@@ -19,8 +20,12 @@ export async function GET(req) {
   try {
     await dbConnect();
     
-    // Auth check - allow Admin and verified Delivery Associates
-    const user = await verifyJWT(req);
+    // Auth check
+    const authResult = await authenticate(req);
+    if (!authResult.success) {
+      return NextResponse.json({ success: false, error: authResult.error }, { status: authResult.statusCode });
+    }
+    const user = authResult.user; 
     // In a real app, you might restrict this to admin only or filter for DA
     // For now, assuming if they have a valid token they can list orders
     // functionality is primarily for Admin Dashboard
@@ -74,12 +79,18 @@ export async function GET(req) {
 }
 
 
+
+
 export async function POST(req) {
   try {
     await dbConnect();
 
     // 🔐 JWT user (User collection)
-    const user = await verifyJWT(req);
+    const authResult = await authenticate(req);
+    if (!authResult.success) {
+        return NextResponse.json({ success: false, error: authResult.error }, { status: authResult.statusCode });
+    }
+    const user = authResult.user;
 
     const body = await req.json();
     const {
