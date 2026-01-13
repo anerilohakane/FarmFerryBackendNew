@@ -151,7 +151,19 @@ const supplierSchema = new mongoose.Schema(
     },
     lastLogin: {
       type: Date
-    }
+    },
+    // Payout Requests
+    payoutRequests: [
+      {
+        amount: { type: Number, required: true },
+        status: { type: String, enum: ['pending', 'approved', 'rejected', 'processed'], default: 'pending' },
+        requestedAt: { type: Date, default: Date.now },
+        processedAt: { type: Date },
+        adminNote: { type: String },
+        method: { type: String },
+        transactionId: { type: String }
+      }
+    ]
   },
   { timestamps: true }
 );
