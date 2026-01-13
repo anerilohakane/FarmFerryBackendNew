@@ -5,6 +5,7 @@ import Product from "@/models/Product";
 import Customer from "@/models/Customer";
 import Notification from "@/models/Notification";
 import DeliveryAssociate from "@/models/DeliveryAssociate";
+import Admin from "@/models/Admin";
 import { corsHandler } from "@/utils/corsHandler";
 import { authenticate } from "@/middlewares/auth.middleware";
 
@@ -143,9 +144,13 @@ export async function POST(req) {
       );
     }
 
-    /* ------------------ LOCK PRODUCT PRICES ------------------ */
+    /* ------------------ LOCK PRODUCT PRICES AND DEDUCT STOCK ------------------ */
 
     const orderItems = [];
+    const notificationPromises = [];
+    
+    // Fetch an admin for notifications
+    const adminRecipient = await Admin.findOne().select('_id'); 
 
     for (const item of items) {
       const product = await Product.findById(item.product);
@@ -167,7 +172,45 @@ export async function POST(req) {
         discountedPrice,
         variation: item.variation || undefined
       });
+      
+      // Deduct stock
+      if (product.quantity >= item.quantity) {
+          product.quantity -= item.quantity;
+          product.totalSold = (product.totalSold || 0) + item.quantity;
+          await product.save();
+          
+          // Check for Low Stock / Out of Stock
+          if (adminRecipient) {
+              if (product.quantity === 0) {
+                  notificationPromises.push(Notification.create({
+                      recipient: adminRecipient._id,
+                      recipientType: 'admin',
+                      title: 'Product Out of Stock',
+                      message: `Product "${product.name}" is now out of stock!`,
+                      type: 'out_of_stock',
+                      referenceId: product._id
+                  }));
+              } else if (product.quantity <= 10) {
+                  notificationPromises.push(Notification.create({
+                      recipient: adminRecipient._id,
+                      recipientType: 'admin',
+                      title: 'Low Stock Alert',
+                      message: `Product "${product.name}" is running low (${product.quantity} remaining).`,
+                      type: 'low_stock',
+                      referenceId: product._id
+                  }));
+              }
+          }
+      } else {
+          return NextResponse.json(
+            { success: false, message: `Insufficient stock for ${product.name}` },
+            { status: 400 }
+          );
+      }
     }
+    
+    // Execute notification creation
+    await Promise.all(notificationPromises);
 
     /* ------------------ CREATE ORDER ------------------ */
 
@@ -197,6 +240,18 @@ export async function POST(req) {
       }));
       
       await Notification.insertMany(notifications);
+    }
+    
+    // 🔔 Notify Admin about New Order
+    if (adminRecipient) {
+        await Notification.create({
+            recipient: adminRecipient._id,
+            recipientType: 'admin',
+            title: 'New Order Placed',
+            message: `New order #${order._id.toString().slice(-6)} placed by ${customer.firstName} ${customer.lastName}.`,
+            type: 'new_order',
+            referenceId: order._id
+        });
     }
 
     return NextResponse.json(
