@@ -3,12 +3,29 @@ import dbConnect from '@/lib/connectDB';
 import Product from '@/models/Product';
 import Order from '@/models/Order'; // Need orders to determine top selling
 
+import { corsHandler } from "@/utils/corsHandler";
+import { authenticate } from "@/middlewares/auth.middleware";
+
+export async function OPTIONS(req) {
+  return new Response(null, {
+    status: 204,
+    headers: corsHandler(req),
+  });
+}
+
 export async function GET(req) {
   try {
     await dbConnect();
 
+    // Auth check
+    const authResult = await authenticate(req);
+    if (!authResult.success) {
+        return NextResponse.json({ success: false, error: authResult.error }, { status: authResult.statusCode });
+    }
+
     // Top selling products (approximation based on Order items if accessible, or just Product sales counter if exists)
     // Product model doesn't seem to have 'sales' counter.
+
     // We can aggregate Orders to find top products.
     // But Order items schema is needed.
     // Assuming Order.items = [{ product: ObjectId, quantity: Number, ... }]

@@ -2,10 +2,28 @@ import { NextResponse } from 'next/server';
 import dbConnect from '@/lib/connectDB';
 import Order from '@/models/Order';
 
+import { corsHandler } from "@/utils/corsHandler";
+import { authenticate } from "@/middlewares/auth.middleware";
+
+export async function OPTIONS(req) {
+  return new Response(null, {
+    status: 204,
+    headers: corsHandler(req),
+  });
+}
+
 export async function GET(req) {
   try {
     await dbConnect();
+
+    // Auth check
+    const authResult = await authenticate(req);
+    if (!authResult.success) {
+        return NextResponse.json({ success: false, error: authResult.error }, { status: authResult.statusCode });
+    }
+
     const { searchParams } = new URL(req.url);
+
     const startDate = searchParams.get('startDate');
     const endDate = searchParams.get('endDate');
 
