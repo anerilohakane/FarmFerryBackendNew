@@ -6,28 +6,22 @@ import { NextResponse } from "next/server";
 export async function PUT(request) {
   try {
     await connectDB();
-    
-    const token = request.headers.get('authorization')?.replace('Bearer ', '');
-    
-    if (!token) {
+
+    /* ------------------ AUTH ------------------ */
+    const authResult = await authenticateSupplier(request);
+
+    if (!authResult.success) {
       return NextResponse.json(
-        { success: false, message: "Authentication required" },
-        { status: 401 }
+        { success: false, message: authResult.error },
+        { status: authResult.statusCode }
       );
     }
 
-    const supplier = await authenticateSupplier(token);
-    
-    if (!supplier) {
-      return NextResponse.json(
-        { success: false, message: "Invalid or expired token" },
-        { status: 401 }
-      );
-    }
+    const supplier = authResult.user;
 
     const body = await request.json();
     const { accountName, accountNumber, bankName, ifscCode, branchName } = body;
-    
+
     // Validate required fields
     if (!accountName || !accountNumber || !bankName || !ifscCode) {
       return NextResponse.json(
@@ -35,7 +29,7 @@ export async function PUT(request) {
         { status: 400 }
       );
     }
-    
+
     // Update bank details
     supplier.bankDetails = {
       accountHolderName: accountName,
@@ -44,9 +38,9 @@ export async function PUT(request) {
       ifscCode,
       branchName: branchName || ""
     };
-    
+
     await supplier.save();
-    
+
     return NextResponse.json({
       success: true,
       message: "Bank details updated successfully",

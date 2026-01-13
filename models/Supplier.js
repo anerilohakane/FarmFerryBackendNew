@@ -1,33 +1,33 @@
- import mongoose from "mongoose";
+import mongoose from "mongoose";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 
 const supplierSchema = new mongoose.Schema(
   {
-    businessName: { 
-      type: String, 
+    businessName: {
+      type: String,
       // required: [true, "Business name is required"],   
-      trim: true 
+      trim: true
     },
-    ownerName: { 
-      type: String, 
+    ownerName: {
+      type: String,
       // required: [true, "Owner name is required"],
-      trim: true 
+      trim: true
     },
-    email: { 
-      type: String, 
-      required: [true, "Email is required"], 
-      unique: true, 
+    email: {
+      type: String,
+      required: [true, "Email is required"],
+      unique: true,
       lowercase: true,
       trim: true,
       match: [/^\S+@\S+\.\S+$/, 'Please enter a valid email address']
     },
-    password: { 
-      type: String, 
+    password: {
+      type: String,
       required: [true, "Password is required"],
       minlength: [6, "Password must be at least 6 characters long"]
     },
-    phone: { 
+    phone: {
       type: String,
       // required: [true, "Phone number is required"]
     },
@@ -37,51 +37,59 @@ const supplierSchema = new mongoose.Schema(
     },
 
     // Business Details
-    businessType: { 
+    businessType: {
       type: String,
       enum: ["farmer", "wholesaler", "retailer", "processor", "other", "Agriculture"],
       // required: [true, "Business type is required"]
     },
-    shopName: { 
+    shopName: {
       type: String,
-      trim: true 
+      trim: true
     },
-    gstNumber: { 
+    gstNumber: {
       type: String,
-      trim: true 
+      trim: true
     },
-    panNumber: { 
+    panNumber: {
       type: String,
-      trim: true 
+      trim: true
     },
 
     // Address Details
     address: {
-      street: { 
+      street: {
         type: String,
         // required: [true, "Street address is required"],
-        trim: true 
+        trim: true
       },
-      city: { 
+      city: {
         type: String,
         // required: [true, "City is required"],
-        trim: true 
+        trim: true
       },
-      state: { 
+      state: {
         type: String,
         // required: [true, "State is required"],
-        trim: true 
+        trim: true
       },
-      country: { 
+      country: {
         type: String,
         // required: [true, "Country is required"],
-        trim: true 
+        trim: true
       },
-      postalCode: { 
+      postalCode: {
         type: String,
-        // required: [true, "Postal code .....is required"],
-        trim: true 
+        // required: [true, "Postal code is required"],
+        trim: true
       },
+      landmark: {
+        type: String,
+        trim: true
+      },
+      coordinates: {
+        lat: Number,
+        lng: Number
+      }
     },
 
     // Bank Details
@@ -90,32 +98,33 @@ const supplierSchema = new mongoose.Schema(
       bankName: { type: String },
       accountNumber: { type: String },
       ifscCode: { type: String },
+      branchName: { type: String }
     },
 
     documents: { type: Array, default: [] },
     // Verification Status
-    status: { 
-      type: String, 
-      enum: ["pending", "approved", "rejected", "active", "inactive", "blocked"], 
-      default: "pending" 
+    status: {
+      type: String,
+      enum: ["pending", "approved", "rejected", "active", "inactive", "blocked"],
+      default: "pending"
     },
-    verificationNotes: { 
-      type: String 
+    verificationNotes: {
+      type: String
     },
-    verifiedAt: { 
-      type: Date 
+    verifiedAt: {
+      type: Date
     },
-    verifiedBy: { 
-      type: mongoose.Schema.Types.ObjectId, 
-      ref: "Admin" 
+    verifiedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Admin"
     },
 
     // Password Reset
-    passwordResetToken: { 
-      type: String 
+    passwordResetToken: {
+      type: String
     },
-    passwordResetExpires: { 
-      type: Date 
+    passwordResetExpires: {
+      type: Date
     },
 
     // Phone Verification
@@ -133,14 +142,14 @@ const supplierSchema = new mongoose.Schema(
     // Performance & Activity
     totalOrders: {
       type: Number,
-      default: 0 
+      default: 0
     },
-    totalRevenue: { 
-      type: Number, 
-      default: 0 
+    totalRevenue: {
+      type: Number,
+      default: 0
     },
-    lastLogin: { 
-      type: Date 
+    lastLogin: {
+      type: Date
     }
   },
   { timestamps: true }

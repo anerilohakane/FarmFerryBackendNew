@@ -16,27 +16,17 @@ function isValidObjectIdString(id) {
 export async function GET(request, { params }) {
   await dbConnect();
 
-  const token = request.headers.get('authorization')?.replace('Bearer ', '');
-    
-    if (!token) {
-      return NextResponse.json(
-        { success: false, message: "Authentication required" },
-        { status: 401 }
-      );
-    }
+  /* ------------------ AUTH ------------------ */
+  const authResult = await authenticateSupplier(request);
 
-    const user = authenticateSupplier(token);
-  if (!user || !["admin", "supplier"].includes(user.role)) {
+  if (!authResult.success) {
     return NextResponse.json(
-      { success: false, error: "Unauthorized" },
-      { status: 401 }
+      { success: false, message: authResult.error },
+      { status: authResult.statusCode }
     );
   }
 
-  // if supplier, force supplierId
-  if (user.role === "supplier") {
-    body.supplierId = user.supplierId;
-  }
+  const user = authResult.user;
 
   try {
     const { id } = await params;
@@ -64,6 +54,14 @@ export async function GET(request, { params }) {
       return NextResponse.json(
         { success: false, error: "Product not found" },
         { status: 404 }
+      );
+    }
+
+    // Security: If supplier, ensure they own the product
+    if (user.role === "supplier" && String(product.supplierId) !== String(user._id)) {
+      return NextResponse.json(
+        { success: false, error: "Unauthorized access to this product" },
+        { status: 403 }
       );
     }
 
@@ -103,27 +101,17 @@ export async function GET(request, { params }) {
 export async function PUT(request, { params }) {
   await dbConnect();
 
-  const token = request.headers.get('authorization')?.replace('Bearer ', '');
-    
-    if (!token) {
-      return NextResponse.json(
-        { success: false, message: "Authentication required" },
-        { status: 401 }
-      );
-    }
+  /* ------------------ AUTH ------------------ */
+  const authResult = await authenticateSupplier(request);
 
-    const user = authenticateSupplier(token);
-  if (!user || !["admin", "supplier"].includes(user.role)) {
+  if (!authResult.success) {
     return NextResponse.json(
-      { success: false, error: "Unauthorized" },
-      { status: 401 }
+      { success: false, message: authResult.error },
+      { status: authResult.statusCode }
     );
   }
 
-  // if supplier, force supplierId
-  if (user.role === "supplier") {
-    body.supplierId = user.supplierId;
-  }
+  const user = authResult.user;
 
   try {
     const { id } = await params;
@@ -137,29 +125,42 @@ export async function PUT(request, { params }) {
 
     const body = await request.json();
 
-    const updated = await Product.findByIdAndUpdate(
-  id,
-  body,
-  {
-    new: true,
-    runValidators: true,
-  }
-);
+    // if supplier, force supplierId to ensure they don't change ownership
+    if (user.role === "supplier") {
+      body.supplierId = user._id; // Use user._id (from model), not user.supplierId
+    }
 
-
-    if (!updated) {
+    // Ensure the product belongs to the supplier BEFORE updating
+    const existingProduct = await Product.findOne({ _id: id });
+    if (!existingProduct) {
       return NextResponse.json(
         { success: false, error: "Product not found" },
         { status: 404 }
       );
     }
 
+    if (user.role === "supplier" && String(existingProduct.supplierId) !== String(user._id)) {
+      return NextResponse.json(
+        { success: false, error: "Unauthorized to update this product" },
+        { status: 403 }
+      );
+    }
+
+    const updated = await Product.findByIdAndUpdate(
+      id,
+      body,
+      {
+        new: true,
+        runValidators: true,
+      }
+    );
+
     return NextResponse.json({ success: true, data: updated });
 
     /* ------------------ NOTIFICATION CHECK ------------------ */
     if (updated.stockQuantity <= 10) {
       const recentNotif = await Notification.findOne({
-        recipient: user.supplierId || user._id,
+        recipient: user._id,
         referenceId: updated._id,
         type: "LOW_STOCK",
         createdAt: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) }
@@ -167,7 +168,7 @@ export async function PUT(request, { params }) {
 
       if (!recentNotif) {
         await Notification.create({
-          recipient: user.supplierId || user._id,
+          recipient: user._id,
           recipientType: "supplier",
           title: "Low Stock Alert",
           message: `Your product "${updated.name}" is running low on stock (${updated.stockQuantity} remaining).`,
@@ -191,28 +192,17 @@ export async function PUT(request, { params }) {
 export async function PATCH(request, { params }) {
   await dbConnect();
 
+  /* ------------------ AUTH ------------------ */
+  const authResult = await authenticateSupplier(request);
 
-  const token = request.headers.get('authorization')?.replace('Bearer ', '');
-    
-    if (!token) {
-      return NextResponse.json(
-        { success: false, message: "Authentication required" },
-        { status: 401 }
-      );
-    }
-
-    const user = authenticateSupplier(token);
-  if (!user || !["admin", "supplier"].includes(user.role)) {
+  if (!authResult.success) {
     return NextResponse.json(
-      { success: false, error: "Unauthorized" },
-      { status: 401 }
+      { success: false, message: authResult.error },
+      { status: authResult.statusCode }
     );
   }
 
-  // if supplier, force supplierId
-  if (user.role === "supplier") {
-    body.supplierId = user.supplierId;
-  }
+  const user = authResult.user;
 
   try {
     const { id } = await params;
@@ -226,25 +216,39 @@ export async function PATCH(request, { params }) {
 
     const body = await request.json();
 
-    const updated = await Product.findByIdAndUpdate(
-      id,
-      { $set: body },
-      { new: true, runValidators: true }
-    );
+    // if supplier, force supplierId
+    if (user.role === "supplier") {
+      body.supplierId = user._id;
+    }
 
-    if (!updated) {
+    // Ensure the product belongs to the supplier BEFORE updating
+    const existingProduct = await Product.findOne({ _id: id });
+    if (!existingProduct) {
       return NextResponse.json(
         { success: false, error: "Product not found" },
         { status: 404 }
       );
     }
 
+    if (user.role === "supplier" && String(existingProduct.supplierId) !== String(user._id)) {
+      return NextResponse.json(
+        { success: false, error: "Unauthorized to update this product" },
+        { status: 403 }
+      );
+    }
+
+    const updated = await Product.findByIdAndUpdate(
+      id,
+      { $set: body },
+      { new: true, runValidators: true }
+    );
+
     return NextResponse.json({ success: true, data: updated });
 
     /* ------------------ NOTIFICATION CHECK ------------------ */
     if (updated.stockQuantity <= 10) {
       const recentNotif = await Notification.findOne({
-        recipient: user.supplierId || user._id,
+        recipient: user._id,
         referenceId: updated._id,
         type: "LOW_STOCK",
         createdAt: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) }
@@ -252,7 +256,7 @@ export async function PATCH(request, { params }) {
 
       if (!recentNotif) {
         await Notification.create({
-          recipient: user.supplierId || user._id,
+          recipient: user._id,
           recipientType: "supplier",
           title: "Low Stock Alert",
           message: `Your product "${updated.name}" is running low on stock (${updated.stockQuantity} remaining).`,
@@ -276,27 +280,17 @@ export async function PATCH(request, { params }) {
 export async function DELETE(request, { params }) {
   await dbConnect();
 
-  const token = request.headers.get('authorization')?.replace('Bearer ', '');
-    
-    if (!token) {
-      return NextResponse.json(
-        { success: false, message: "Authentication required" },
-        { status: 401 }
-      );
-    }
+  /* ------------------ AUTH ------------------ */
+  const authResult = await authenticateSupplier(request);
 
-    const user = authenticateSupplier(token);
-  if (!user || !["admin", "supplier"].includes(user.role)) {
+  if (!authResult.success) {
     return NextResponse.json(
-      { success: false, error: "Unauthorized" },
-      { status: 401 }
+      { success: false, message: authResult.error },
+      { status: authResult.statusCode }
     );
   }
 
-  // if supplier, force supplierId
-  if (user.role === "supplier") {
-    body.supplierId = user.supplierId;
-  }
+  const user = authResult.user;
 
   try {
     const { id } = await params;
@@ -308,14 +302,23 @@ export async function DELETE(request, { params }) {
       );
     }
 
-    const deleted = await Product.findByIdAndDelete(id);
-
-    if (!deleted) {
+    // Ensure the product belongs to the supplier BEFORE deleting
+    const existingProduct = await Product.findOne({ _id: id });
+    if (!existingProduct) {
       return NextResponse.json(
         { success: false, error: "Product not found" },
         { status: 404 }
       );
     }
+
+    if (user.role === "supplier" && String(existingProduct.supplierId) !== String(user._id)) {
+      return NextResponse.json(
+        { success: false, error: "Unauthorized to delete this product" },
+        { status: 403 }
+      );
+    }
+
+    const deleted = await Product.findByIdAndDelete(id);
 
     return NextResponse.json({ success: true, data: deleted });
   } catch (err) {
