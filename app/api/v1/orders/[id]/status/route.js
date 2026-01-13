@@ -50,17 +50,14 @@ export async function PUT(req, context) {
     // 🔔 Notify Admin for Important Status Changes (Return/Cancelled)
     if (['returned', 'cancelled', 'return_requested'].includes(status)) {
         try {
-            const adminRecipient = await Admin.findOne().select('_id');
-            if (adminRecipient) {
-                await Notification.create({
-                    recipient: adminRecipient._id,
-                    recipientType: 'admin',
-                    title: `Order ${status.charAt(0).toUpperCase() + status.slice(1)}`,
-                    message: `Order #${order._id.toString().slice(-6)} has been marked as ${status}.`,
-                    type: 'order_status_update',
-                    referenceId: order._id
-                });
-            }
+            await Notification.create({
+                recipient: null, // Broadcast to all admins
+                recipientType: 'admin',
+                title: `Order ${status.charAt(0).toUpperCase() + status.slice(1)}`,
+                message: `Order #${order._id.toString().slice(-6)} has been marked as ${status}.`,
+                type: 'order_status_update',
+                referenceId: order._id
+            });
         } catch (notifError) {
             console.error("Notification trigger failed:", notifError);
             // Don't fail the request if notification fails

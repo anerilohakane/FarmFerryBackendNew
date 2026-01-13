@@ -94,6 +94,17 @@ export async function POST(req) {
 
     await da.save();
 
+    // Notify SuperAdmin
+    const { default: Notification } = await import("@/models/Notification");
+    await Notification.create({
+        recipient: null, // or specific admin ID if needed, but recipientType 'admin' handles generic admin fetch
+        recipientType: 'admin',
+        title: 'New Payout Request',
+        message: `Delivery Associate ${da.name} requested a payout of ₹${amount}`,
+        type: 'payout_request',
+        referenceId: da._id
+    });
+
     return NextResponse.json({
       success: true,
       message: "Payout requested successfully",
