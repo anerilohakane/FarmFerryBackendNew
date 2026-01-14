@@ -186,14 +186,14 @@ export async function POST(req) {
       });
       
       // Deduct stock
-      if (product.quantity >= item.quantity) {
-          product.quantity -= item.quantity;
+      if (product.stockQuantity >= item.quantity) {
+          product.stockQuantity -= item.quantity;
           product.totalSold = (product.totalSold || 0) + item.quantity;
           await product.save();
           
           // Check for Low Stock / Out of Stock
           if (adminRecipient) {
-              if (product.quantity === 0) {
+              if (product.stockQuantity === 0) {
                   notificationPromises.push(Notification.create({
                       recipient: adminRecipient._id,
                       recipientType: 'admin',
@@ -202,12 +202,12 @@ export async function POST(req) {
                       type: 'out_of_stock',
                       referenceId: product._id
                   }));
-              } else if (product.quantity <= 10) {
+              } else if (product.stockQuantity <= 10) {
                   notificationPromises.push(Notification.create({
                       recipient: adminRecipient._id,
                       recipientType: 'admin',
                       title: 'Low Stock Alert',
-                      message: `Product "${product.name}" is running low (${product.quantity} remaining).`,
+                      message: `Product "${product.name}" is running low (${product.stockQuantity} remaining).`,
                       type: 'low_stock',
                       referenceId: product._id
                   }));

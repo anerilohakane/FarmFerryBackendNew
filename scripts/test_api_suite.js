@@ -1,7 +1,7 @@
 
 const mongoose = require('mongoose');
 
-const API_BASE = "https://farm-ferry-backend-new.vercel.app/api/v1";
+const API_BASE = "http://localhost:3001/api/v1";
 const MONGODB_URI = "mongodb+srv://aneridelxn_db_user:YhZGkF6u2pEeVyvJ@farmferry-db.11sfqjg.mongodb.net/farmferry_data?retryWrites=true&w=majority";
 
 const colors = {
