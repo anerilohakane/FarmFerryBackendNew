@@ -41,7 +41,18 @@ export const verifyJWT = async (token) => {
     }
 
     if (!user) {
-      return { error: "Invalid token - User not found", statusCode: 401 };
+      // If customer not found but token is valid, allow lazy creation downstream
+      if (decodedToken.role === 'customer' || !decodedToken.role) {
+        console.warn(`⚠️ [Auth] Customer ${decodedToken.id} not found in DB. Passing for lazy creation.`);
+        // Create a minimal user object from token data
+        user = {
+          _id: decodedToken.id,
+          role: 'customer',
+          isMissing: true
+        };
+      } else {
+        return { error: "Invalid token - User not found", statusCode: 401 };
+      }
     }
 
     return { user, role: decodedToken.role };

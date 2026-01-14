@@ -1,13 +1,13 @@
 import connectDB from "@/lib/connectDB";
 import Session from "@/models/Session";
-// import { apiResponse } from "@/utils/apiResponse";
+import { apiResponse } from "@/utils/apiResponse";
 import { handleCors, corsHandler } from "@/utils/corsHandler";
 
 export async function POST(req) {
   // Handle CORS preflight
   const corsResponse = await handleCors(req);
   if (corsResponse) return corsResponse;
-  
+
   await connectDB();
 
   const { refreshToken } = await req.json();

@@ -3,14 +3,24 @@ import dbConnect from "@/lib/connectDB";
 import Order from "@/models/Order";
 import Product from "@/models/Product";
 import Customer from "@/models/Customer";
-import { verifyJWT } from "@/middlewares/auth.middleware";
+import { authenticate } from "@/middlewares/auth.middleware";
 
 export async function POST(req) {
   try {
     await dbConnect();
 
-    // 🔐 JWT user (User collection)
-    const user = await verifyJWT(req);
+    // 🔐 Authenticate user
+    const authResult = await authenticate(req);
+    if (!authResult.success) {
+      console.error("❌ Authentication failed:", authResult.error);
+      return NextResponse.json(
+        { success: false, message: authResult.error },
+        { status: authResult.statusCode }
+      );
+    }
+
+    const user = authResult.user;
+    console.log(`✅ [PlaceOrder] User authenticated: ${user._id} (${user.email || user.name})`);
 
     const body = await req.json();
     const {
@@ -24,23 +34,48 @@ export async function POST(req) {
 
     /* ------------------ FIND CUSTOMER FROM USER ------------------ */
 
-    const customer = await Customer.findOne({ user: user._id });
+    /* ------------------ IDENTIFY CUSTOMER ------------------ */
 
-    if (!customer) {
-      return NextResponse.json(
-        { success: false, message: "Customer profile not found" },
-        { status: 404 }
-      );
+    // In this system, the authenticated 'user' IS the Customer document (if role is customer).
+    let customer = user;
+
+    // 🛠️ Lazy Create Customer if missing/deleted from DB but has valid token
+    if (user.isMissing) {
+      console.log(`🛠️ [PlaceOrder] Lazy creating customer profile for ID: ${user._id}`);
+      try {
+        // We create a minimal customer profile. 
+        // Note: We don't have phone/email from token usually, so we leave them blank or placeholder.
+        customer = await Customer.create({
+          _id: user._id,
+          firstName: "Recovered",
+          lastName: "User",
+          role: "customer",
+          isPhoneVerified: true
+        });
+        console.log(`✅ [PlaceOrder] Customer profile created: ${customer._id}`);
+      } catch (err) {
+        console.error("❌ [PlaceOrder] Failed to lazy create customer:", err);
+        // If it failed because it already exists (race condition), try to fetch it
+        if (err.code === 11000) {
+          customer = await Customer.findById(user._id);
+        } else {
+          return NextResponse.json(
+            { success: false, message: "Failed to initialize customer profile" },
+            { status: 500 }
+          );
+        }
+      }
     }
+
+    if (authResult.role !== 'customer') {
+      // Optional: Handle case where admin/supplier tries to place order
+      // For now, we assume only customers place orders or we log a warning
+      console.warn(`⚠️ [PlaceOrder] User role is '${authResult.role}', treating as customer.`);
+    }
+
+    console.log(`✅ [PlaceOrder] Using customer profile: ${customer._id}`);
 
     /* ------------------ VALIDATIONS ------------------ */
-
-    if (!supplier) {
-      return NextResponse.json(
-        { success: false, message: "Supplier is required" },
-        { status: 400 }
-      );
-    }
 
     if (!items || !items.length) {
       return NextResponse.json(
@@ -71,6 +106,7 @@ export async function POST(req) {
       const product = await Product.findById(item.product);
 
       if (!product) {
+        console.error(`❌ [PlaceOrder] Product not found: ${item.product}`);
         return NextResponse.json(
           { success: false, message: "Product not found" },
           { status: 404 }
@@ -91,9 +127,10 @@ export async function POST(req) {
 
     /* ------------------ CREATE ORDER ------------------ */
 
+    console.log(`📝 [PlaceOrder] Creating order for customer ${customer._id} with ${orderItems.length} items...`);
     const order = await Order.create({
       customer: customer._id, // ✅ derived securely
-      supplier,
+      supplier, // Optional now
       items: orderItems,
       deliveryAddress,
       paymentMethod,
@@ -102,6 +139,8 @@ export async function POST(req) {
       status: "pending",
       paymentStatus: "pending"
     });
+
+    console.log(`🎉 [PlaceOrder] Order created successfully: ${order._id}`);
 
     return NextResponse.json(
       {

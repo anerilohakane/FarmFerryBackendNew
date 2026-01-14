@@ -15,7 +15,11 @@ export async function GET(request) {
     }
 
     try {
+        // authResult.user IS the customer document.
+        // We can just return its addresses, but to be safe/fresh, let's fetch by ID.
+        // Note: Customer model doesn't have a 'user' field, it is the user.
         const customer = await Customer.findById(authResult.user._id).select("addresses");
+
         if (!customer) {
             return NextResponse.json({ success: false, error: "Customer not found" }, { status: 404 });
         }
@@ -39,6 +43,7 @@ export async function POST(request) {
 
     try {
         const body = await request.json();
+        console.log("POST /customer/addresses received body:", body);
 
         // Validation
         if (!body.street || !body.city || !body.state || !body.postalCode || !body.country) {
@@ -49,6 +54,7 @@ export async function POST(request) {
         }
 
         const customer = await Customer.findById(authResult.user._id);
+
         if (!customer) {
             return NextResponse.json({ success: false, error: "Customer not found" }, { status: 404 });
         }
@@ -63,6 +69,7 @@ export async function POST(request) {
         }
 
         customer.addresses.push(body);
+
         await customer.save();
 
         // Return the newly added address (last one in the array)
