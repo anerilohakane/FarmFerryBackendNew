@@ -105,9 +105,21 @@ export async function POST(req) {
 
     /* ------------------ FIND CUSTOMER FROM USER ------------------ */
 
-    const customer = await Customer.findOne({ user: user._id });
+    console.log("Order POST Debug: Auth User ID:", user._id);
+    // In auth middleware for Customer, user IS the customer document usually?
+    // Let's check if we need to query by user: user._id or just use user._id
+    
+    // Attempt 1: As per original code
+    let customer = await Customer.findOne({ user: user._id });
+    
+    // Attempt 2: If auth middleware returns the customer doc itself, then user._id IS the customer _id
+    if (!customer) {
+        console.log("Debug: Customer not found by { user: user._id }. Trying findById(user._id)...");
+        customer = await Customer.findById(user._id);
+    }
 
     if (!customer) {
+      console.log("Debug: Customer still not found.");
       return NextResponse.json(
         { success: false, message: "Customer profile not found" },
         { status: 404 }
