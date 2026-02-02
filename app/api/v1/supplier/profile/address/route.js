@@ -6,43 +6,37 @@ import { NextResponse } from "next/server";
 export async function PUT(request) {
   try {
     await connectDB();
-    
-    const token = request.headers.get('authorization')?.replace('Bearer ', '');
-    
-    if (!token) {
+
+    /* ------------------ AUTH ------------------ */
+    const authResult = await authenticateSupplier(request);
+
+    if (!authResult.success) {
       return NextResponse.json(
-        { success: false, message: "Authentication required" },
-        { status: 401 }
+        { success: false, message: authResult.error },
+        { status: authResult.statusCode }
       );
     }
 
-    const supplier = await authenticateSupplier(token);
-    
-    if (!supplier) {
-      return NextResponse.json(
-        { success: false, message: "Invalid or expired token" },
-        { status: 401 }
-      );
-    }
+    const supplier = authResult.user;
 
     const body = await request.json();
-    const { 
-      street, 
-      city, 
-      state, 
-      postalCode, 
-      country, 
+    const {
+      street,
+      city,
+      state,
+      postalCode,
+      country,
       landmark,
-      coordinates 
+      coordinates
     } = body;
-    
+
     if (!street || !city || !state || !postalCode || !country) {
       return NextResponse.json(
         { success: false, message: "All address fields are required" },
         { status: 400 }
       );
     }
-    
+
     // Update address
     supplier.address = {
       street,
@@ -53,11 +47,11 @@ export async function PUT(request) {
       landmark: landmark || "",
       coordinates: coordinates || {}
     };
-    
+
     await supplier.save();
-    
+
     const updatedSupplier = await Supplier.findById(supplier._id).select("-password -passwordResetToken -passwordResetExpires");
-    
+
     return NextResponse.json({
       success: true,
       message: "Address updated successfully",

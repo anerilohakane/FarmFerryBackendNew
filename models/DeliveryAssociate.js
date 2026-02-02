@@ -1,5 +1,5 @@
 import mongoose from "mongoose";
-import bcrypt from "bcrypt";
+import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
 
@@ -166,15 +166,9 @@ const deliveryAssociateSchema = new mongoose.Schema(
 deliveryAssociateSchema.index({ currentLocation: "2dsphere" });
 
 // Hash password before saving
-deliveryAssociateSchema.pre("save", async function (next) {
-  if (!this.isModified("password")) return next();
-  
-  try {
-    this.password = await bcrypt.hash(this.password, 10);
-    next();
-  } catch (error) {
-    next(error);
-  }
+deliveryAssociateSchema.pre("save", async function () {
+  if (!this.isModified("password")) return;
+  this.password = await bcrypt.hash(this.password, 10);
 });
 
 // Compare password method
@@ -190,9 +184,9 @@ deliveryAssociateSchema.methods.generateAccessToken = function () {
       email: this.email,
       role: this.role
     }, 
-    process.env.ACCESS_TOKEN_SECRET,
+    process.env.JWT_ACCESS_SECRET || "fallback_access_token_secret",
     {
-      expiresIn: process.env.ACCESS_TOKEN_EXPIRY
+      expiresIn: process.env.JWT_ACCESS_EXPIRY || "1d"
     }
   );
 };
@@ -203,9 +197,9 @@ deliveryAssociateSchema.methods.generateRefreshToken = function () {
     {
       id: this._id
     }, 
-    process.env.REFRESH_TOKEN_SECRET,
+    process.env.REFRESH_TOKEN_SECRET || "fallback_refresh_token_secret",
     {
-      expiresIn: process.env.REFRESH_TOKEN_EXPIRY
+      expiresIn: process.env.REFRESH_TOKEN_EXPIRY || "7d"
     }
   );
 };
@@ -224,6 +218,13 @@ deliveryAssociateSchema.methods.generatePasswordResetToken = function () {
   return resetToken;
 };
 
-const DeliveryAssociate = mongoose.model("DeliveryAssociate", deliveryAssociateSchema);
+// Prevent model overwrite error in development
+// if (mongoose.models.DeliveryAssociate) {
+//   delete mongoose.models.DeliveryAssociate;
+// }
+
+const DeliveryAssociate =
+  mongoose.models.DeliveryAssociate ||
+  mongoose.model("DeliveryAssociate", deliveryAssociateSchema);
 
 export default DeliveryAssociate;

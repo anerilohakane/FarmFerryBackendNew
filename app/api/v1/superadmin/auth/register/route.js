@@ -3,7 +3,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import dbConnect from '@/lib/connectDB';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-super-secret-key-change-this';
+const JWT_SECRET = process.env.JWT_SECRET || 'farmferry_super_secret_key_2026';
 
 // POST method handler
 export async function POST(req) {

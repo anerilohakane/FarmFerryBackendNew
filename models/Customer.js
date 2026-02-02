@@ -157,7 +157,7 @@
 //       email: this.email,
 //       role: this.role
 //     }, 
-//     process.env.ACCESS_TOKEN_SECRET || 'fallback_access_token_secret',
+//     process.env.JWT_ACCESS_SECRET, || 'fallback_access_token_secret',
 //     {
 //       expiresIn: process.env.ACCESS_TOKEN_EXPIRY || '1d'
 //     }
@@ -267,7 +267,7 @@ customerSchema.methods.isPasswordCorrect = async function (password) {
 customerSchema.methods.generateAccessToken = function () {
   return jwt.sign(
     { id: this._id, role: this.role },
-    process.env.ACCESS_TOKEN_SECRET,
+    process.env.JWT_ACCESS_SECRET,
     { expiresIn: "1d" }
   );
 };

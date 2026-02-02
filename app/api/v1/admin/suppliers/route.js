@@ -1,129 +1,71 @@
-import { NextResponse } from 'next/server';
-import { dbConnect } from '@/lib/dbConnect';
-import Supplier from '@/models/Supplier';
-import { withAuth } from '@/lib/auth';
+import { NextResponse } from "next/server";
+import dbConnect from "@/lib/connectDB";
+import Supplier from "@/models/Supplier";
+import { authenticate } from "@/middlewares/auth.middleware";
+import { corsHandler } from "@/utils/corsHandler";
 
-// GET - Get all suppliers
-export const GET = withAuth(async (req) => {
+export async function OPTIONS(req) {
+  return new Response(null, {
+    status: 204,
+    headers: corsHandler(req),
+  });
+}
+
+// GET: List all suppliers
+export async function GET(req) {
   try {
     await dbConnect();
-    
+
+    const authResult = await authenticate(req);
+    if (!authResult.success || authResult.role !== 'admin' && authResult.role !== 'superadmin') {
+      return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 403 });
+    }
+
     const { searchParams } = new URL(req.url);
-    const search = searchParams.get('search');
+    const limit = parseInt(searchParams.get('limit')) || 10;
+    const page = parseInt(searchParams.get('page')) || 1;
+    const search = searchParams.get('search') || '';
     const status = searchParams.get('status');
-    const sort = searchParams.get('sort') || "createdAt";
-    const order = searchParams.get('order') || "desc";
-    const page = parseInt(searchParams.get('page') || "1");
-    const limit = parseInt(searchParams.get('limit') || "10");
-    
-    const queryOptions = {};
-    
-    // Search by business name, owner name, or email
+
+    const query = {};
     if (search) {
-      queryOptions.$or = [
-        { businessName: { $regex: search, $options: "i" } },
-        { ownerName: { $regex: search, $options: "i" } },
-        { email: { $regex: search, $options: "i" } }
+      query.$or = [
+        { businessName: { $regex: search, $options: 'i' } },
+        { ownerName: { $regex: search, $options: 'i' } },
+        { email: { $regex: search, $options: 'i' } }
       ];
     }
-    
-    // Filter by status
-    if (status) {
-      queryOptions.status = status;
+    if (status && status !== 'all') {
+      query.status = status;
     }
-    
-    // Calculate pagination
-    const skip = (page - 1) * limit;
-    
-    // Prepare sort options
-    const sortOptions = {};
-    sortOptions[sort] = order === "asc" ? 1 : -1;
-    
-    // Get suppliers with pagination
-    const suppliers = await Supplier.find(queryOptions)
-      .select("-password -passwordResetToken -passwordResetExpires")
-      .sort(sortOptions)
-      .skip(skip)
-      .limit(limit);
-    
-    // Get total count
-    const totalSuppliers = await Supplier.countDocuments(queryOptions);
-    
-    return NextResponse.json(
-      {
-        success: true,
-        data: { 
-          suppliers,
-          pagination: {
-            total: totalSuppliers,
-            page: page,
-            limit: limit,
-            pages: Math.ceil(totalSuppliers / limit)
-          }
-        },
-        message: "Suppliers fetched successfully"
-      },
-      { status: 200 }
-    );
-    
-  } catch (error) {
-    console.error('Get suppliers error:', error);
-    return NextResponse.json(
-      { success: false, message: error.message || 'Internal server error' },
-      { status: 500 }
-    );
-  }
-}, true);
 
-// POST - Create new supplier
-export const POST = withAuth(async (req) => {
-  try {
-    await dbConnect();
-    
-    const body = await req.json();
-    const { businessName, ownerName, email, phone, status, address, password } = body;
-    
-    if (!businessName || !ownerName || !email || !phone) {
-      return NextResponse.json(
-        { success: false, message: "Business name, owner name, email, and phone are required" },
-        { status: 400 }
-      );
-    }
-    
-    // Check if email already exists
-    const existing = await Supplier.findOne({ email });
-    
-    if (existing) {
-      return NextResponse.json(
-        { success: false, message: "Supplier with this email already exists" },
-        { status: 400 }
-      );
-    }
-    
-    const supplier = await Supplier.create({
-      businessName,
-      ownerName,
-      email,
-      phone,
-      status: status || "pending",
-      address,
-      password: password || Math.random().toString(36).slice(-8),
+    const skip = (page - 1) * limit;
+
+    const suppliers = await Supplier.find(query)
+      .select('-password')
+      .skip(skip)
+      .limit(limit)
+      .sort({ createdAt: -1 });
+
+    const total = await Supplier.countDocuments(query);
+
+    return NextResponse.json({
+      success: true,
+      data: {
+        suppliers,
+        pagination: {
+          total,
+          page,
+          pages: Math.ceil(total / limit)
+        }
+      }
     });
-    
-    return NextResponse.json(
-      {
-        success: true,
-        data: { supplier },
-        message: "Supplier created successfully"
-      },
-      { status: 201 }
-    );
-    
+
   } catch (error) {
-    console.error('Create supplier error:', error);
+    console.error("Fetch suppliers error:", error);
     return NextResponse.json(
-      { success: false, message: error.message || 'Internal server error' },
+      { success: false, error: error.message },
       { status: 500 }
     );
   }
-}, true);
+}

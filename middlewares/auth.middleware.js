@@ -4,6 +4,8 @@ import Supplier from "@/models/Supplier";
 import SuperAdmin from "@/models/SuperAdmin";
 import Admin from "@/models/Admin";
 import dbConnect from "@/lib/connectDB";
+import mongoose from "mongoose";
+const connectDB = dbConnect;
 /**
  * Verify JWT token and return user object
  */
@@ -14,7 +16,16 @@ export const verifyJWT = async (token) => {
     }
 
     // Verify token
-    const decodedToken = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET || 'fallback_access_token_secret');
+    const secret = process.env.JWT_ACCESS_SECRET || "fallback_access_token_secret";
+    console.log("Middleware Auth - Secret Start:", secret.substring(0, 3));
+    console.log("Middleware Auth - Token Received:", token);
+    
+    const decodedToken = jwt.verify(
+      token,
+      secret
+    );
+    console.log("Token Decoded:", decodedToken);
+
 
     // Connect to database
     await connectDB();
@@ -28,19 +39,21 @@ export const verifyJWT = async (token) => {
     } else if (decodedToken.role === "supplier") {
       user = await Supplier.findById(decodedToken.id).select("-password");
     } else if (decodedToken.role === "deliveryAssociate") {
-      const DeliveryAssociate = (await import("@/models/deliveryAssociate.model")).default;
+      const DeliveryAssociate = (await import("@/models/DeliveryAssociate")).default;
       user = await DeliveryAssociate.findById(decodedToken.id).select("-password -passwordResetToken -passwordResetExpires");
     } else {
       user = await Customer.findById(decodedToken.id).select("-password");
     }
 
     if (!user) {
+      console.log("User not found for ID:", decodedToken.id, "Role:", decodedToken.role);
       return { error: "Invalid token - User not found", statusCode: 401 };
     }
 
     return { user, role: decodedToken.role };
   } catch (error) {
     if (error.name === "JsonWebTokenError") {
+      console.log("JWT Error:", error.message);
       return { error: "Invalid token", statusCode: 401 };
     }
     if (error.name === "TokenExpiredError") {
@@ -61,26 +74,26 @@ export const authenticate = async (request) => {
     const token = authHeader?.replace('Bearer ', '') || null;
 
     const result = await verifyJWT(token);
-    
+
     if (result.error) {
-      return { 
-        success: false, 
-        error: result.error, 
-        statusCode: result.statusCode 
+      return {
+        success: false,
+        error: result.error,
+        statusCode: result.statusCode
       };
     }
-    
-    return { 
-      success: true, 
-      user: result.user, 
-      role: result.role 
+
+    return {
+      success: true,
+      user: result.user,
+      role: result.role
     };
   } catch (error) {
     console.error("Authentication error:", error);
-    return { 
-      success: false, 
-      error: "Authentication failed", 
-      statusCode: 401 
+    return {
+      success: false,
+      error: "Authentication failed",
+      statusCode: 401
     };
   }
 };
@@ -90,11 +103,11 @@ export const authenticate = async (request) => {
  */
 export const authenticateSupplier = async (request) => {
   const authResult = await authenticate(request);
-  
+
   if (!authResult.success) {
     return authResult;
   }
-  
+
   if (authResult.role !== 'supplier') {
     return {
       success: false,
@@ -102,7 +115,7 @@ export const authenticateSupplier = async (request) => {
       statusCode: 403
     };
   }
-  
+
   return authResult;
 };
 
@@ -113,11 +126,11 @@ export const authenticateSupplier = async (request) => {
 export const requireRole = (allowedRoles) => {
   return async (request) => {
     const authResult = await authenticate(request);
-    
+
     if (!authResult.success) {
       return authResult;
     }
-    
+
     if (!allowedRoles.includes(authResult.role)) {
       return {
         success: false,
@@ -125,7 +138,7 @@ export const requireRole = (allowedRoles) => {
         statusCode: 403
       };
     }
-    
+
     return authResult;
   };
 };
@@ -135,11 +148,11 @@ export const requireRole = (allowedRoles) => {
  */
 export const requireVerifiedSupplier = async (request) => {
   const authResult = await authenticateSupplier(request);
-  
+
   if (!authResult.success) {
     return authResult;
   }
-  
+
   if (authResult.user.status !== "approved") {
     return {
       success: false,
@@ -147,7 +160,7 @@ export const requireVerifiedSupplier = async (request) => {
       statusCode: 403
     };
   }
-  
+
   return authResult;
 };
 
@@ -157,14 +170,35 @@ export const requireVerifiedSupplier = async (request) => {
  */
 export const authenticateSupplierToken = async (token) => {
   const result = await verifyJWT(token);
-  
+
   if (result.error) {
     return null;
   }
-  
+
   if (result.role !== 'supplier') {
     return null;
   }
-  
+
   return result.user;
+};
+
+/**
+ * Verify token for Delivery Associate routes
+ */
+export const authenticateDeliveryAssociate = async (request) => {
+  const authResult = await authenticate(request);
+
+  if (!authResult.success) {
+    return authResult;
+  }
+
+  if (authResult.role !== 'deliveryAssociate') {
+    return {
+      success: false,
+      error: "Access denied. Delivery Associate role required.",
+      statusCode: 403
+    };
+  }
+
+  return authResult;
 };

@@ -255,17 +255,27 @@ const orderSchema = new mongoose.Schema(
 );
 
 // Middleware to auto-calculate totals before saving
-orderSchema.pre("save", function (next) {
-  // Calculate subtotal from items
-  this.subtotal = this.items.reduce((sum, item) => sum + item.totalPrice, 0);
+orderSchema.pre("save", function () {
+  // subtotal
+  this.subtotal = this.items.reduce(
+    (sum, item) => sum + item.totalPrice,
+    0
+  );
 
-  // Calculate final total
-  this.totalAmount = this.subtotal - this.discountAmount + this.gst + this.deliveryCharge + this.platformFee + this.handlingFee;
+  // total amount
+  this.totalAmount =
+    this.subtotal -
+    this.discountAmount +
+    this.gst +
+    this.deliveryCharge +
+    this.platformFee +
+    this.handlingFee;
 
-  // Add status to history if it's a new order or status changed
-  const lastStatus = this.statusHistory.length > 0
-    ? this.statusHistory[this.statusHistory.length - 1].status
-    : null;
+  // status history
+  const lastStatus =
+    this.statusHistory.length > 0
+      ? this.statusHistory[this.statusHistory.length - 1].status
+      : null;
 
   if (!lastStatus || lastStatus !== this.status) {
     this.statusHistory.push({
@@ -273,13 +283,14 @@ orderSchema.pre("save", function (next) {
       updatedAt: new Date()
     });
   }
-
-  next();
 });
+
 
 //db.orders.createIndex({ "deliveryAddress.location": "2dsphere" })
 orderSchema.index({ 'deliveryAddress.location': '2dsphere' });
 
-const Order = mongoose.model("Order", orderSchema);
+const Order =
+  mongoose.models.Order || mongoose.model("Order", orderSchema);
 
 export default Order;
+

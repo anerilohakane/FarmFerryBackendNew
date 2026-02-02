@@ -1,5 +1,5 @@
 import mongoose from "mongoose";
-import bcrypt from "bcrypt";
+import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
 
@@ -77,19 +77,18 @@ const adminSchema = new mongoose.Schema(
 );
 
 // Hash password before saving
-adminSchema.pre("save", async function (next) {
-  if (!this.isModified("password")) return next();
+adminSchema.pre("save", async function () {
+  if (!this.isModified("password")) return;
   
   try {
     this.password = await bcrypt.hash(this.password, 10);
-    next();
   } catch (error) {
-    next(error);
+    throw new Error(error);
   }
 });
 
 // Ensure notificationPreferences defaults
-adminSchema.pre("save", function(next) {
+adminSchema.pre("save", async function() {
   if (!this.notificationPreferences) {
     this.notificationPreferences = {
       orderUpdates: true,
@@ -98,7 +97,6 @@ adminSchema.pre("save", function(next) {
       marketing: false
     };
   }
-  next();
 });
 
 // Compare password method
@@ -114,7 +112,7 @@ adminSchema.methods.generateAccessToken = function () {
       email: this.email,
       role: this.role
     }, 
-    process.env.ACCESS_TOKEN_SECRET,
+    process.env.JWT_ACCESS_SECRET,
     {
       expiresIn: process.env.ACCESS_TOKEN_EXPIRY
     }
@@ -153,6 +151,8 @@ adminSchema.virtual('joinDate').get(function() {
   return this.createdAt;
 });
 
-const Admin = mongoose.model("Admin", adminSchema);
+const Admin =
+  mongoose.models.Admin || mongoose.model("Admin", adminSchema);
 
 export default Admin;
+

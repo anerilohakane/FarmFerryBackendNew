@@ -1,16 +1,30 @@
 import { NextResponse } from 'next/server';
-import { dbConnect } from '@/lib/dbConnect';
+import dbConnect from '@/lib/connectDB';
 import Admin from '@/models/Admin';
-import { withAuth } from '@/lib/auth';
+
+import { corsHandler } from "@/utils/corsHandler";
+import { authenticate } from "@/middlewares/auth.middleware";
+
+export async function OPTIONS(req) {
+  return new Response(null, {
+    status: 204,
+    headers: corsHandler(req),
+  });
+}
 
 // GET - Get admin profile
-export const GET = withAuth(async (req) => {
+export async function GET(req) {
   try {
     await dbConnect();
     
-    const userId = req.headers.get('x-user-id');
-    
-    const admin = await Admin.findById(userId).select("-password -passwordResetToken -passwordResetExpires");
+    // Auth check
+    const authResult = await authenticate(req);
+    if (!authResult.success) {
+        return NextResponse.json({ success: false, error: authResult.error }, { status: authResult.statusCode });
+    }
+    const user = authResult.user;
+
+    const admin = await Admin.findById(user._id).select("-password -passwordResetToken -passwordResetExpires");
     
     if (!admin) {
       return NextResponse.json(
@@ -39,16 +53,21 @@ export const GET = withAuth(async (req) => {
       { status: 500 }
     );
   }
-}, true); // true indicates admin-only access
+}
 
 // PUT - Update admin profile
-export const PUT = withAuth(async (req) => {
+export async function PUT(req) {
   try {
     await dbConnect();
+
+    // Auth check
+    const authResult = await authenticate(req);
+    if (!authResult.success) {
+        return NextResponse.json({ success: false, error: authResult.error }, { status: authResult.statusCode });
+    }
+    const user = authResult.user;
     
-    const userId = req.headers.get('x-user-id');
     const body = await req.json();
-    
     const { name, phone, location, company, avatar, notificationPreferences } = body;
     
     const updateFields = {};
@@ -61,7 +80,7 @@ export const PUT = withAuth(async (req) => {
     if (notificationPreferences) updateFields.notificationPreferences = notificationPreferences;
     
     const updatedAdmin = await Admin.findByIdAndUpdate(
-      userId,
+      user._id,
       { $set: updateFields },
       { new: true }
     ).select("-password -passwordResetToken -passwordResetExpires");
@@ -93,4 +112,4 @@ export const PUT = withAuth(async (req) => {
       { status: 500 }
     );
   }
-}, true);
+}
