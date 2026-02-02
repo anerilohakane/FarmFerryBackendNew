@@ -3,11 +3,6 @@ import dbConnect from "@/lib/connectDB";
 import Cart from "@/models/Cart";
 import Product from "@/models/Product";
 
-import { NextResponse } from "next/server";
-import dbConnect from "@/lib/db/connect";
-import Cart from "@/lib/db/models/cart";
-import Product from "@/lib/db/models/product";
-
 export async function GET(req) {
   try {
     await dbConnect();
