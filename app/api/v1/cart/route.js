@@ -3,6 +3,11 @@ import dbConnect from "@/lib/connectDB";
 import Cart from "@/models/Cart";
 import Product from "@/models/Product";
 
+import { NextResponse } from "next/server";
+import dbConnect from "@/lib/db/connect";
+import Cart from "@/lib/db/models/cart";
+import Product from "@/lib/db/models/product";
+
 export async function GET(req) {
   try {
     await dbConnect();
@@ -17,10 +22,10 @@ export async function GET(req) {
       );
     }
 
-    // 🔥 Ensure populate works
-    const cart = await Cart.findOne({ userId })
+    // 🔥 Ensure populate works - use 'customer' field
+    const cart = await Cart.findOne({ customer: userId })
       .populate({
-        path: "items.productId",
+        path: "items.product",  // Changed from items.productId to items.product
         model: Product,
       })
       .exec();
@@ -34,7 +39,7 @@ export async function GET(req) {
 
     // 🔥 Format items cleanly for frontend
     const formattedItems = cart.items.map((item) => {
-      const p = item.productId; // populated product
+      const p = item.product; // populated product (changed from item.productId)
 
       return {
         productId: p?._id?.toString(),
@@ -81,7 +86,7 @@ export async function POST(request) {
     const body = await request.json();
 
     console.log(body);
-    
+
     const userId = body.userId;
     const productId = body.productId;
     const quantity = Math.max(1, parseInt(body.quantity || "1", 10));
@@ -96,43 +101,51 @@ export async function POST(request) {
       return NextResponse.json({ success: false, error: "Requested quantity exceeds available stock" }, { status: 400 });
     }
 
-    // Upsert cart
-    const cart = await Cart.findOne({ userId });
+    // Determine unit price (use discounted price if available)
+    const unitPrice = product.discountedPrice || product.price;
+
+    // Upsert cart - use 'customer' field to match Cart schema
+    const cart = await Cart.findOne({ customer: userId });
     if (!cart) {
       const item = {
-        productId,
+        product: productId,  // Changed from productId to product
         quantity,
-        name: product.name,
         price: product.price,
-        thumbnail: product.images?.[0]?.url || "",
-        unit: product.unit
+        discountedPrice: product.discountedPrice,
+        totalPrice: unitPrice * quantity,  // Added required totalPrice
       };
-      const newCart = new Cart({ userId, items: [item], subtotal: product.price * quantity, updatedAt: new Date() });
+      const newCart = new Cart({
+        customer: userId,  // Changed from userId to customer
+        items: [item],
+        subtotal: unitPrice * quantity,
+        updatedAt: new Date()
+      });
       await newCart.save();
       return NextResponse.json({ success: true, data: newCart }, { status: 201 });
     }
 
     // if exists, update qty, else push
-    const existingIndex = cart.items.findIndex(i => String(i.productId) === String(productId));
+    const existingIndex = cart.items.findIndex(i => String(i.product) === String(productId));
     if (existingIndex > -1) {
       cart.items[existingIndex].quantity += quantity;
       // clamp to stock if needed
       if (product.stockQuantity != null && cart.items[existingIndex].quantity > product.stockQuantity) {
         cart.items[existingIndex].quantity = product.stockQuantity;
       }
+      // Recalculate totalPrice
+      cart.items[existingIndex].totalPrice = cart.items[existingIndex].quantity * unitPrice;
     } else {
       cart.items.push({
-        productId,
+        product: productId,  // Changed from productId to product
         quantity,
-        name: product.name,
         price: product.price,
-        thumbnail: product.images?.[0]?.url || "",
-        unit: product.unit
+        discountedPrice: product.discountedPrice,
+        totalPrice: unitPrice * quantity,  // Added required totalPrice
       });
     }
 
     // recalc subtotal
-    cart.subtotal = cart.items.reduce((sum, it) => sum + (it.price || 0) * (it.quantity || 0), 0);
+    cart.subtotal = cart.items.reduce((sum, it) => sum + (it.totalPrice || 0), 0);
     cart.updatedAt = new Date();
     await cart.save();
 
@@ -153,7 +166,7 @@ export async function PATCH(request) {
     const body = await request.json();
 
     console.log(body);
-    
+
     const userId = body.userId;
     const productId = body.productId;
     if (!userId || !productId) return NextResponse.json({ success: false, error: "userId and productId required" }, { status: 400 });
@@ -161,10 +174,10 @@ export async function PATCH(request) {
     const qty = typeof body.quantity !== "undefined" ? parseInt(body.quantity, 10) : null;
     if (qty != null && qty < 0) return NextResponse.json({ success: false, error: "Invalid quantity" }, { status: 400 });
 
-    const cart = await Cart.findOne({ userId });
+    const cart = await Cart.findOne({ customer: userId });  // Changed from userId to customer
     if (!cart) return NextResponse.json({ success: false, error: "Cart not found" }, { status: 404 });
 
-    const idx = cart.items.findIndex(i => String(i.productId) === String(productId));
+    const idx = cart.items.findIndex(i => String(i.product) === String(productId));  // Changed from i.productId to i.product
     if (idx === -1) return NextResponse.json({ success: false, error: "Item not in cart" }, { status: 404 });
 
     if (qty === 0) {
@@ -176,15 +189,18 @@ export async function PATCH(request) {
         return NextResponse.json({ success: false, error: "Requested quantity exceeds available stock" }, { status: 400 });
       }
       cart.items[idx].quantity = qty;
+      cart.items[idx].totalPrice = qty * (cart.items[idx].discountedPrice ?? cart.items[idx].price);
     } else if (body.increment) {
       cart.items[idx].quantity += 1;
+      cart.items[idx].totalPrice = cart.items[idx].quantity * (cart.items[idx].discountedPrice ?? cart.items[idx].price);
     } else if (body.decrement) {
       cart.items[idx].quantity = Math.max(1, cart.items[idx].quantity - 1);
+      cart.items[idx].totalPrice = cart.items[idx].quantity * (cart.items[idx].discountedPrice ?? cart.items[idx].price);
     } else {
       return NextResponse.json({ success: false, error: "No update action specified" }, { status: 400 });
     }
 
-    cart.subtotal = cart.items.reduce((sum, it) => sum + (it.price || 0) * (it.quantity || 0), 0);
+    cart.subtotal = cart.items.reduce((sum, it) => sum + (it.totalPrice || 0), 0);  // Use totalPrice instead of price * quantity
     cart.updatedAt = new Date();
     await cart.save();
     return NextResponse.json({ success: true, data: cart });
@@ -206,14 +222,14 @@ export async function DELETE(request) {
     const queryUser = url.searchParams.get("userId");
     const queryProduct = url.searchParams.get("productId");
     let body = {};
-    try { body = await request.json(); } catch(e){}
+    try { body = await request.json(); } catch (e) { }
 
     const userId = body.userId || queryUser;
     const productId = body.productId || queryProduct;
 
     if (!userId) return NextResponse.json({ success: false, error: "userId required" }, { status: 400 });
 
-    const cart = await Cart.findOne({ userId });
+    const cart = await Cart.findOne({ customer: userId });  // Changed from userId to customer
     if (!cart) return NextResponse.json({ success: true, data: { userId, items: [] } });
 
     if (!productId) {
@@ -221,8 +237,8 @@ export async function DELETE(request) {
       cart.items = [];
       cart.subtotal = 0;
     } else {
-      cart.items = cart.items.filter(i => String(i.productId) !== String(productId));
-      cart.subtotal = cart.items.reduce((sum, it) => sum + (it.price || 0) * (it.quantity || 0), 0);
+      cart.items = cart.items.filter(i => String(i.product) !== String(productId));  // Changed from i.productId to i.product
+      cart.subtotal = cart.items.reduce((sum, it) => sum + (it.totalPrice || 0), 0);  // Use totalPrice
     }
 
     cart.updatedAt = new Date();
@@ -233,3 +249,4 @@ export async function DELETE(request) {
     return NextResponse.json({ success: false, error: err.message }, { status: 500 });
   }
 }
+
