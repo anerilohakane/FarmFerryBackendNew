@@ -123,7 +123,6 @@ export async function POST(request) {
       const item = {
         product: productId,
         quantity,
-        name: product.name,
         price: product.price,
         totalPrice: product.price * quantity,
         thumbnail: product.images?.[0]?.url || "",
@@ -241,29 +240,16 @@ export async function PATCH(request) {
     if (!cart) return NextResponse.json({ success: false, error: "Cart not found" }, { status: 404 });
 
     const idx = cart.items.findIndex(i => String(i.product) === String(productId));
-    if (idx === -1) return NextResponse.json({ success: false, error: "Item not in cart" }, { status: 404 });
-
-    if (qty === 0) {
-      cart.items.splice(idx, 1);
-    } else if (qty != null) {
-      // Check stock if needed
-      const product = await Product.findById(productId).lean();
-      if (product && product.stockQuantity != null && qty > product.stockQuantity) {
-        return NextResponse.json({ success: false, error: "Requested quantity exceeds available stock" }, { status: 400 });
-      }
-      cart.items[idx].quantity = qty;
-      cart.items[idx].totalPrice = cart.items[idx].quantity * (cart.items[idx].discountedPrice || cart.items[idx].price);
-    } else if (body.increment) {
-      cart.items[idx].quantity += 1;
-      cart.items[idx].totalPrice = cart.items[idx].quantity * (cart.items[idx].discountedPrice || cart.items[idx].price);
-    } else if (body.decrement) {
-      cart.items[idx].quantity = Math.max(1, cart.items[idx].quantity - 1);
-      cart.items[idx].totalPrice = cart.items[idx].quantity * (cart.items[idx].discountedPrice || cart.items[idx].price);
-    } else {
-      return NextResponse.json({ success: false, error: "No update action specified" }, { status: 400 });
+    if (product && product.stockQuantity != null && qty > product.stockQuantity) {
+      return NextResponse.json({ success: false, error: "Requested quantity exceeds available stock" }, { status: 400 });
     }
-
-    cart.subtotal = cart.items.reduce((sum, it) => sum + (it.totalPrice || 0), 0);
+    cart.items[idx].quantity = qty;
+    cart.items[idx].totalPrice = cart.items[idx].quantity * (cart.items[idx].discountedPrice || cart.items[idx].price);
+  } else if (body.increment) {
+    cart.items[idx].quantity += 1;
+    cart.items[idx].totalPrice = cart.items[idx].quantity * (cart.items[idx].discountedPrice || cart.items[idx].price);
+  } else if (body.decrement) {
+    cart.items[idx].quantity = Math.max(1, cart.items[idx].quantity - 1);
     cart.updatedAt = new Date();
     await cart.save();
 
@@ -356,3 +342,4 @@ export async function DELETE(request) {
     return NextResponse.json({ success: false, error: err.message }, { status: 500 });
   }
 }
+
