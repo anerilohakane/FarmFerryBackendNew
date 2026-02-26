@@ -4,23 +4,22 @@ import Order from "@/models/Order";
 import Product from "@/models/Product";
 import Customer from "@/models/Customer";
 import { authenticate } from "@/middlewares/auth.middleware";
+import Admin from "@/models/Admin";
+import Notification from "@/models/Notification";
 
 export async function POST(req) {
   try {
     await dbConnect();
 
-    // 🔐 Authenticate user
+    // 🔐 Authenticate
     const authResult = await authenticate(req);
     if (!authResult.success) {
-      console.error("❌ Authentication failed:", authResult.error);
       return NextResponse.json(
-        { success: false, message: authResult.error },
-        { status: authResult.statusCode }
+        { success: false, message: authResult.error || "Unauthorized" },
+        { status: authResult.statusCode || 401 }
       );
     }
-
-    const user = authResult.user;
-    console.log(`✅ [PlaceOrder] User authenticated: ${user._id} (${user.email || user.name})`);
+    const { user } = authResult;
 
     const body = await req.json();
     const {
@@ -34,46 +33,21 @@ export async function POST(req) {
 
     /* ------------------ FIND CUSTOMER FROM USER ------------------ */
 
-    /* ------------------ IDENTIFY CUSTOMER ------------------ */
+    let customer;
 
-    // In this system, the authenticated 'user' IS the Customer document (if role is customer).
-    let customer = user;
-
-    // 🛠️ Lazy Create Customer if missing/deleted from DB but has valid token
-    if (user.isMissing) {
-      console.log(`🛠️ [PlaceOrder] Lazy creating customer profile for ID: ${user._id}`);
-      try {
-        // We create a minimal customer profile. 
-        // Note: We don't have phone/email from token usually, so we leave them blank or placeholder.
-        customer = await Customer.create({
-          _id: user._id,
-          firstName: "Recovered",
-          lastName: "User",
-          role: "customer",
-          isPhoneVerified: true
-        });
-        console.log(`✅ [PlaceOrder] Customer profile created: ${customer._id}`);
-      } catch (err) {
-        console.error("❌ [PlaceOrder] Failed to lazy create customer:", err);
-        // If it failed because it already exists (race condition), try to fetch it
-        if (err.code === 11000) {
-          customer = await Customer.findById(user._id);
-        } else {
-          return NextResponse.json(
-            { success: false, message: "Failed to initialize customer profile" },
-            { status: 500 }
-          );
-        }
-      }
+    // If the authenticated user is already a customer (standard flow)
+    if (user.role === 'customer' || !user.role) {
+      customer = user;
+    } else {
+      customer = user;
     }
 
-    if (authResult.role !== 'customer') {
-      // Optional: Handle case where admin/supplier tries to place order
-      // For now, we assume only customers place orders or we log a warning
-      console.warn(`⚠️ [PlaceOrder] User role is '${authResult.role}', treating as customer.`);
+    if (!customer) {
+      return NextResponse.json(
+        { success: false, message: "Customer profile not found" },
+        { status: 404 }
+      );
     }
-
-    console.log(`✅ [PlaceOrder] Using customer profile: ${customer._id}`);
 
     /* ------------------ VALIDATIONS ------------------ */
 
@@ -98,9 +72,13 @@ export async function POST(req) {
       );
     }
 
-    /* ------------------ LOCK PRODUCT PRICES ------------------ */
+    /* ------------------ LOCK PRODUCT PRICES AND DEDUCT STOCK ------------------ */
 
     const orderItems = [];
+    const notificationPromises = [];
+
+    // Fetch an admin for notifications
+    const adminRecipient = await Admin.findOne().select('_id');
 
     for (const item of items) {
       const product = await Product.findById(item.product);
@@ -123,14 +101,52 @@ export async function POST(req) {
         discountedPrice,
         variation: item.variation || undefined
       });
+
+      // Deduct stock
+      if (product.stockQuantity >= item.quantity) {
+        product.stockQuantity -= item.quantity;
+        product.totalSold = (product.totalSold || 0) + item.quantity;
+        await product.save();
+
+        // Check for Low Stock / Out of Stock
+        if (adminRecipient) {
+          if (product.stockQuantity === 0) {
+            notificationPromises.push(Notification.create({
+              recipient: adminRecipient._id,
+              recipientType: 'admin',
+              title: 'Product Out of Stock',
+              message: `Product "${product.name}" is now out of stock!`,
+              type: 'out_of_stock',
+              referenceId: product._id
+            }));
+          } else if (product.stockQuantity <= 10) {
+            notificationPromises.push(Notification.create({
+              recipient: adminRecipient._id,
+              recipientType: 'admin',
+              title: 'Low Stock Alert',
+              message: `Product "${product.name}" is running low (${product.stockQuantity} remaining).`,
+              type: 'low_stock',
+              referenceId: product._id
+            }));
+          }
+        }
+      } else {
+        return NextResponse.json(
+          { success: false, message: `Insufficient stock for ${product.name}` },
+          { status: 400 }
+        );
+      }
     }
+
+    // Execute notification creation
+    await Promise.all(notificationPromises);
 
     /* ------------------ CREATE ORDER ------------------ */
 
     console.log(`📝 [PlaceOrder] Creating order for customer ${customer._id} with ${orderItems.length} items...`);
-    const order = await Order.create({
-      customer: customer._id, // ✅ derived securely
-      supplier, // Optional now
+    const orderData = {
+      customer: customer._id,
+      supplier,
       items: orderItems,
       deliveryAddress,
       paymentMethod,
@@ -138,26 +154,50 @@ export async function POST(req) {
       isExpressDelivery: isExpressDelivery || false,
       status: "pending",
       paymentStatus: "pending"
-    });
+    };
 
-    console.log(`🎉 [PlaceOrder] Order created successfully: ${order._id}`);
+    console.log("📦 [PlaceOrder] Order Payload:", JSON.stringify(orderData, null, 2));
+
+    const order = await Order.create(orderData);
+
+    console.log(`✅ [PlaceOrder] Order created successfully: ${order._id}`);
+
+    // Safe serialization for response
+    const orderObj = order.toObject ? order.toObject() : order;
 
     return NextResponse.json(
       {
         success: true,
         message: "Order placed successfully",
-        order
+        order: orderObj
       },
       { status: 201 }
     );
   } catch (error) {
-    console.error("❌ Order creation error:", error);
+    console.error("❌ Order creation error (safe log):", error.message);
 
+    // Log validation errors specifically but safely
+    let errorDetails = null;
+    if (error.name === 'ValidationError') {
+      try {
+        // Create a safe, simple object from validation errors
+        errorDetails = {};
+        for (const key in error.errors) {
+          errorDetails[key] = error.errors[key].message;
+        }
+        console.error("❌ Validation Detail:", JSON.stringify(errorDetails));
+      } catch (e) {
+        console.error("❌ Could not log validation details");
+      }
+    }
+
+    // Ensure we don't pass the full error object if it's complex
     return NextResponse.json(
       {
         success: false,
         message: "Failed to create order",
-        error: error.message
+        error: error.message || "Unknown error",
+        details: errorDetails
       },
       { status: 500 }
     );

@@ -2,11 +2,25 @@ import { NextResponse } from 'next/server';
 import dbConnect from '@/lib/connectDB';
 import DeliveryAssociate from '@/models/DeliveryAssociate';
 
+import { corsHandler } from "@/utils/corsHandler";
+import { authenticate } from "@/middlewares/auth.middleware";
+
+export async function OPTIONS(req) {
+  return new Response(null, {
+    status: 204,
+    headers: corsHandler(req),
+  });
+}
+
 // GET - Get all delivery associates
 export async function GET(req) {
   try {
-    
     await dbConnect();
+    const authResult = await authenticate(req);
+    if (!authResult.success) {
+      return NextResponse.json({ success: false, error: authResult.error }, { status: authResult.statusCode });
+    }
+
     
     const { searchParams } = new URL(req.url);
     const search = searchParams.get('search');
@@ -78,8 +92,11 @@ export async function GET(req) {
 // POST - Create delivery associate
 export async function POST(req) {
   try {
-    
     await dbConnect();
+    const authResult = await authenticate(req);
+    if (!authResult.success) {
+      return NextResponse.json({ success: false, error: authResult.error }, { status: authResult.statusCode });
+    }
     
     const body = await req.json();
     const { name, email, phone, password, status = 'Active', vehicleType = 'Motorcycle', address, specialization } = body;

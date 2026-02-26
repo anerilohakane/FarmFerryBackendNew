@@ -37,8 +37,6 @@ const wishlistSchema = new Schema(
   { timestamps: true }
 );
 
-delete mongoose.models.Wishlist;
-export default mongoose.models.Wishlist ||
-  mongoose.model("Wishlist", wishlistSchema);
+const Wishlist = mongoose.models.Wishlist || mongoose.model("Wishlist", wishlistSchema);
+export default Wishlist;
 
-  

@@ -98,7 +98,7 @@ const orderSchema = new mongoose.Schema(
     // Payment details
     paymentMethod: {
       type: String,
-      enum: ["credit_card", "debit_card", "cash_on_delivery", "upi", "bank_transfer"],
+      enum: ["credit_card", "debit_card", "cash_on_delivery", "upi", "bank_transfer", "cod", "online"],
       required: true
     },
     paymentStatus: {
@@ -211,6 +211,10 @@ const orderSchema = new mongoose.Schema(
       type: Number,
       min: 1,
       max: 5
+    },
+    feedback: {
+      type: String,
+      trim: true
     },
     notes: {
       type: String

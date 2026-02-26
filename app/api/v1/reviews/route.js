@@ -1,235 +1,161 @@
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/connectDB";
-import Cart from "@/models/Cart";
-import Product from "@/models/Product";
+import Review from "@/models/Review"; // Imports Review singleton
+import Product from "@/models/Product"; // Imports Product model to register it
+import { authenticate } from "@/middlewares/auth.middleware";
+import mongoose from "mongoose";
 
-export async function GET(req) {
+/**
+ * POST /api/v1/reviews
+ * Creates a new review for a product
+ */
+export async function POST(request) {
   try {
+    console.log("POST /api/v1/reviews - Request received");
     await dbConnect();
+    console.log("DB Connected. State:", mongoose.connection.readyState);
 
-    const url = new URL(req.url);
-    const userId = url.searchParams.get("userId");
-
-    if (!userId) {
+    // 1. Authenticate User
+    const authResult = await authenticate(request);
+    if (!authResult.success) {
+      console.log("Authentication failed:", authResult.error);
       return NextResponse.json(
-        { success: false, error: "userId required" },
+        { success: false, error: authResult.error },
+        { status: authResult.statusCode }
+      );
+    }
+
+    const { user } = authResult;
+    const userId = user._id;
+    console.log("User Authenticated:", userId);
+
+    // 2. Parse Body
+    let body;
+    try {
+      body = await request.json();
+    } catch (e) {
+      return NextResponse.json({ success: false, error: "Invalid JSON body" }, { status: 400 });
+    }
+
+    const { productId, rating, title, comment } = body;
+    console.log("Review payload:", { productId, rating, title, comment });
+
+    // 3. Validation
+    if (!productId) {
+      return NextResponse.json(
+        { success: false, error: "Product ID is required" },
         { status: 400 }
       );
     }
 
-    // 🔥 Ensure populate works
-    const cart = await Cart.findOne({ userId })
-      .populate({
-        path: "items.productId",
-        model: Product,
-      })
-      .exec();
-
-    if (!cart) {
-      return NextResponse.json({
-        success: true,
-        data: { userId, items: [], subtotal: 0 },
-      });
+    if (!rating) {
+      return NextResponse.json(
+        { success: false, error: "Rating is required" },
+        { status: 400 }
+      );
     }
 
-    // 🔥 Format items cleanly for frontend
-    const formattedItems = cart.items.map((item) => {
-      const p = item.productId; // populated product
+    // Verify product exists
+    const productExists = await Product.exists({ _id: productId });
+    if (!productExists) {
+      console.log("Product not found:", productId);
+      return NextResponse.json(
+        { success: false, error: "Product not found" },
+        { status: 404 }
+      );
+    }
 
-      return {
-        productId: p?._id?.toString(),
-        quantity: item.quantity,
-        product: {
-          id: p?._id?.toString(),
-          name: p?.name,
-          price: p?.price,
-          unit: p?.unit,
-          image:
-            p?.images?.[0]?.url ||
-            p?.image ||
-            "/images/placeholder-product.png",
-          stockQuantity: p?.stockQuantity,
-        },
-      };
-    });
+    // 4. Create Review
+    const reviewData = {
+      product: productId,
+      customer: userId,
+      rating: Number(rating),
+      title: title || "",
+      comment: comment || "",
+      isVerified: true,
+      isVisible: true
+    };
 
-    return NextResponse.json({
-      success: true,
-      data: {
-        userId,
-        items: formattedItems,
-        subtotal: cart.subtotal,
-      },
-    });
-  } catch (err) {
-    console.error("GET /api/cart error", err);
+    console.log("Attempting to create review in DB:", mongoose.connection.db.databaseName);
+
+    // Explicitly using Review model from import
+    const review = await Review.create(reviewData);
+
+    console.log("Review created successfully. ID:", review._id);
+
     return NextResponse.json(
-      { success: false, error: err.message },
+      {
+        success: true,
+        data: review,
+        message: "Review submitted successfully",
+        debug: {
+          dbName: mongoose.connection.db.databaseName,
+          reviewId: review._id
+        }
+      },
+      { status: 201 }
+    );
+
+  } catch (error) {
+    console.error("POST /api/v1/reviews error:", error);
+
+    // Handle duplicate key error (MongoDB code 11000)
+    if (error.code === 11000) {
+      return NextResponse.json(
+        { success: false, error: "You have already reviewed this product" },
+        { status: 400 }
+      );
+    }
+
+    if (error.name === "ValidationError") {
+      const messages = Object.values(error.errors).map(val => val.message);
+      return NextResponse.json(
+        { success: false, error: messages.join(", ") },
+        { status: 400 }
+      );
+    }
+
+    return NextResponse.json(
+      { success: false, error: "Internal Server Error", details: error.message },
       { status: 500 }
     );
   }
 }
 
 /**
- * POST /api/cart
- * body: { userId, productId, quantity }
- * Adds item (or increases quantity if exists)
+ * GET /api/v1/reviews
+ * Get reviews, potentially filtered by productId
  */
-export async function POST(request) {
-  await dbConnect();
+export async function GET(request) {
   try {
-    const body = await request.json();
+    await dbConnect();
 
-    console.log(body);
-    
-    const userId = body.userId;
-    const productId = body.productId;
-    const quantity = Math.max(1, parseInt(body.quantity || "1", 10));
-
-    if (!userId || !productId) return NextResponse.json({ success: false, error: "userId and productId required" }, { status: 400 });
-
-    const product = await Product.findById(productId).lean();
-    if (!product) return NextResponse.json({ success: false, error: "Product not found" }, { status: 404 });
-
-    // If quantity > stock, enforce limit (optional)
-    if (product.stockQuantity != null && quantity > product.stockQuantity) {
-      return NextResponse.json({ success: false, error: "Requested quantity exceeds available stock" }, { status: 400 });
-    }
-
-    // Upsert cart
-    const cart = await Cart.findOne({ userId });
-    if (!cart) {
-      const item = {
-        productId,
-        quantity,
-        name: product.name,
-        price: product.price,
-        thumbnail: product.images?.[0]?.url || "",
-        unit: product.unit
-      };
-      const newCart = new Cart({ userId, items: [item], subtotal: product.price * quantity, updatedAt: new Date() });
-      await newCart.save();
-      return NextResponse.json({ success: true, data: newCart }, { status: 201 });
-    }
-
-    // if exists, update qty, else push
-    const existingIndex = cart.items.findIndex(i => String(i.productId) === String(productId));
-    if (existingIndex > -1) {
-      cart.items[existingIndex].quantity += quantity;
-      // clamp to stock if needed
-      if (product.stockQuantity != null && cart.items[existingIndex].quantity > product.stockQuantity) {
-        cart.items[existingIndex].quantity = product.stockQuantity;
-      }
-    } else {
-      cart.items.push({
-        productId,
-        quantity,
-        name: product.name,
-        price: product.price,
-        thumbnail: product.images?.[0]?.url || "",
-        unit: product.unit
-      });
-    }
-
-    // recalc subtotal
-    cart.subtotal = cart.items.reduce((sum, it) => sum + (it.price || 0) * (it.quantity || 0), 0);
-    cart.updatedAt = new Date();
-    await cart.save();
-
-    return NextResponse.json({ success: true, data: cart });
-  } catch (err) {
-    console.error("POST /api/cart error", err);
-    return NextResponse.json({ success: false, error: err.message }, { status: 500 });
-  }
-}
-
-/**
- * PATCH /api/cart
- * body: { userId, productId, quantity }  -- set quantity (if quantity === 0 remove)
- */
-export async function PATCH(request) {
-  await dbConnect();
-  try {
-    const body = await request.json();
-
-    console.log(body);
-    
-    const userId = body.userId;
-    const productId = body.productId;
-    if (!userId || !productId) return NextResponse.json({ success: false, error: "userId and productId required" }, { status: 400 });
-
-    const qty = typeof body.quantity !== "undefined" ? parseInt(body.quantity, 10) : null;
-    if (qty != null && qty < 0) return NextResponse.json({ success: false, error: "Invalid quantity" }, { status: 400 });
-
-    const cart = await Cart.findOne({ userId });
-    if (!cart) return NextResponse.json({ success: false, error: "Cart not found" }, { status: 404 });
-
-    const idx = cart.items.findIndex(i => String(i.productId) === String(productId));
-    if (idx === -1) return NextResponse.json({ success: false, error: "Item not in cart" }, { status: 404 });
-
-    if (qty === 0) {
-      cart.items.splice(idx, 1);
-    } else if (qty != null) {
-      // Check stock if needed
-      const product = await Product.findById(productId).lean();
-      if (product && product.stockQuantity != null && qty > product.stockQuantity) {
-        return NextResponse.json({ success: false, error: "Requested quantity exceeds available stock" }, { status: 400 });
-      }
-      cart.items[idx].quantity = qty;
-    } else if (body.increment) {
-      cart.items[idx].quantity += 1;
-    } else if (body.decrement) {
-      cart.items[idx].quantity = Math.max(1, cart.items[idx].quantity - 1);
-    } else {
-      return NextResponse.json({ success: false, error: "No update action specified" }, { status: 400 });
-    }
-
-    cart.subtotal = cart.items.reduce((sum, it) => sum + (it.price || 0) * (it.quantity || 0), 0);
-    cart.updatedAt = new Date();
-    await cart.save();
-    return NextResponse.json({ success: true, data: cart });
-  } catch (err) {
-    console.error("PATCH /api/cart error", err);
-    return NextResponse.json({ success: false, error: err.message }, { status: 500 });
-  }
-}
-
-/**
- * DELETE /api/cart
- * body or query: { userId, productId }  -- removes a product from cart
- * if only userId provided and no productId -> clears cart
- */
-export async function DELETE(request) {
-  await dbConnect();
-  try {
     const url = new URL(request.url);
-    const queryUser = url.searchParams.get("userId");
-    const queryProduct = url.searchParams.get("productId");
-    let body = {};
-    try { body = await request.json(); } catch(e){}
+    const productId = url.searchParams.get("productId");
+    console.log("GET /api/v1/reviews - Query:", productId);
 
-    const userId = body.userId || queryUser;
-    const productId = body.productId || queryProduct;
-
-    if (!userId) return NextResponse.json({ success: false, error: "userId required" }, { status: 400 });
-
-    const cart = await Cart.findOne({ userId });
-    if (!cart) return NextResponse.json({ success: true, data: { userId, items: [] } });
-
-    if (!productId) {
-      // clear cart
-      cart.items = [];
-      cart.subtotal = 0;
-    } else {
-      cart.items = cart.items.filter(i => String(i.productId) !== String(productId));
-      cart.subtotal = cart.items.reduce((sum, it) => sum + (it.price || 0) * (it.quantity || 0), 0);
+    let query = { isVisible: true };
+    if (productId) {
+      query.product = productId;
     }
 
-    cart.updatedAt = new Date();
-    await cart.save();
-    return NextResponse.json({ success: true, data: cart });
-  } catch (err) {
-    console.error("DELETE /api/cart error", err);
-    return NextResponse.json({ success: false, error: err.message }, { status: 500 });
+    const reviews = await Review.find(query)
+      .populate("customer", "firstName lastName profileImage addresses") // Populate customer details incl addresses for name fallback
+      .sort({ createdAt: -1 });
+
+    console.log(`Found ${reviews.length} reviews`);
+
+    return NextResponse.json({
+      success: true,
+      count: reviews.length,
+      data: reviews
+    });
+
+  } catch (error) {
+    console.error("GET /api/v1/reviews error:", error);
+    return NextResponse.json(
+      { success: false, error: "Internal Server Error" },
+      { status: 500 }
+    );
   }
 }

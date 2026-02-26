@@ -75,7 +75,7 @@
 //     type: String, 
 //     trim: true 
 //   },
-  
+
 //   // Authentication
 //   password: { 
 //     type: String, 
@@ -135,7 +135,7 @@
 // // Hash password before saving
 // customerSchema.pre("save", async function (next) {
 //   if (!this.isModified("password")) return next();
-  
+
 //   try {
 //     this.password = await bcrypt.hash(this.password, 10);
 //     next();
@@ -180,24 +180,24 @@
 // // Generate password reset token
 // customerSchema.methods.generatePasswordResetToken = function () {
 //   const resetToken = crypto.randomBytes(32).toString("hex");
-  
+
 //   this.passwordResetToken = crypto
 //     .createHash("sha256")
 //     .update(resetToken)
 //     .digest("hex");
-    
+
 //   this.passwordResetExpires = Date.now() + 10 * 60 * 1000; // 10 minutes
-  
+
 //   return resetToken;
 // };
 
 // // Generate password reset OTP
 // customerSchema.methods.generatePasswordResetOTP = function () {
 //   const otp = Math.floor(100000 + Math.random() * 900000).toString(); // 6-digit OTP
-  
+
 //   this.passwordResetOTP = otp;
 //   this.passwordResetOTPExpires = Date.now() + 10 * 60 * 1000; // 10 minutes
-  
+
 //   return otp;
 // };
 
@@ -229,6 +229,7 @@ const customerSchema = new mongoose.Schema({
   lastName: { type: String, trim: true },
 
   phone: { type: String, trim: true },
+  mobile: { type: String, trim: true }, // Alias for phone support
 
   password: { type: String, minlength: 6 },
 

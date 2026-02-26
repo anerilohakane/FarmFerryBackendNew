@@ -3,7 +3,8 @@ import dbConnect from "@/lib/connectDB";
 import Customer from "@/models/Customer";
 import { authenticate } from "@/middlewares/auth.middleware";
 
-export async function PUT(request, { params }) {
+export async function PUT(request, props) {
+    const params = await props.params;
     await dbConnect();
 
     const authResult = await authenticate(request);
@@ -59,7 +60,8 @@ export async function PUT(request, { params }) {
     }
 }
 
-export async function DELETE(request, { params }) {
+export async function DELETE(request, props) {
+    const params = await props.params;
     await dbConnect();
 
     const authResult = await authenticate(request);

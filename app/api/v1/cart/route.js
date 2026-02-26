@@ -19,9 +19,9 @@ export async function GET(req) {
     const userId = authResult.user._id;
 
     // 🔥 Ensure populate works
-    const cart = await Cart.findOne({ userId })
+    const cart = await Cart.findOne({ customer: userId })
       .populate({
-        path: "items.productId",
+        path: "items.product",
         model: Product,
       })
       .exec();
@@ -34,30 +34,32 @@ export async function GET(req) {
     }
 
     // 🔥 Format items cleanly for frontend
-    const formattedItems = cart.items.map((item) => {
-      const p = item.productId; // populated product
+    const formattedItems = cart.items
+      .filter(item => item.product) // Filter out items where product is null/undefined (e.g. deleted products)
+      .map((item) => {
+        const p = item.product; // populated product
 
-      return {
-        _id: item._id, // Cart item ID
-        productId: p?._id?.toString(),
-        quantity: item.quantity,
-        product: {
-          _id: p?._id?.toString(),
-          name: p?.name,
+        return {
+          _id: item._id, // Cart item ID
+          productId: p?._id?.toString(),
+          quantity: item.quantity,
+          product: {
+            _id: p?._id?.toString(),
+            name: p?.name,
+            price: p?.price,
+            unit: p?.unit,
+            images: p?.images || [], // Ensure images array exists
+            image:
+              p?.images?.[0]?.url ||
+              p?.image ||
+              "/images/placeholder-product.png",
+            stockQuantity: p?.stockQuantity,
+            gst: p?.gst
+          },
           price: p?.price,
-          unit: p?.unit,
-          images: p?.images || [], // Ensure images array exists
-          image:
-            p?.images?.[0]?.url ||
-            p?.image ||
-            "/images/placeholder-product.png",
-          stockQuantity: p?.stockQuantity,
-          gst: p?.gst
-        },
-        price: p?.price,
-        discountedPrice: p?.discountedPrice
-      };
-    });
+          discountedPrice: p?.discountedPrice
+        };
+      });
 
     return NextResponse.json({
       success: true,
@@ -115,54 +117,92 @@ export async function POST(request) {
     }
 
     // Upsert cart
-    const cart = await Cart.findOne({ userId });
+    let cart = await Cart.findOne({ customer: userId });
 
     if (!cart) {
       const item = {
-        productId,
+        product: productId,
         quantity,
         name: product.name,
         price: product.price,
+        totalPrice: product.price * quantity,
         thumbnail: product.images?.[0]?.url || "",
         unit: product.unit
       };
-      const newCart = new Cart({ userId, items: [item], subtotal: product.price * quantity, updatedAt: new Date() });
+      const newCart = new Cart({ customer: userId, items: [item], subtotal: product.price * quantity, updatedAt: new Date() });
       await newCart.save();
 
       // Populate for response consistency
-      await newCart.populate({ path: "items.productId", model: Product });
+      await newCart.populate({ path: "items.product", model: Product });
 
-      return NextResponse.json({ success: true, data: newCart }, { status: 201 });
-    }
-
-    // if exists, update qty, else push
-    const existingIndex = cart.items.findIndex(i => String(i.productId) === String(productId));
-    if (existingIndex > -1) {
-      cart.items[existingIndex].quantity += quantity;
-      // clamp to stock if needed
-      if (product.stockQuantity != null && cart.items[existingIndex].quantity > product.stockQuantity) {
-        cart.items[existingIndex].quantity = product.stockQuantity;
-      }
+      // Continue to formatting logic below instead of returning early
+      cart = newCart;
     } else {
-      cart.items.push({
-        productId,
-        quantity,
-        name: product.name,
-        price: product.price,
-        thumbnail: product.images?.[0]?.url || "",
-        unit: product.unit
-      });
+
+      // if exists, update qty, else push
+      const existingIndex = cart.items.findIndex(i => String(i.product) === String(productId));
+      if (existingIndex > -1) {
+        cart.items[existingIndex].quantity += quantity;
+        // clamp to stock if needed
+        if (product.stockQuantity != null && cart.items[existingIndex].quantity > product.stockQuantity) {
+          cart.items[existingIndex].quantity = product.stockQuantity;
+        }
+        // Update totalPrice
+        cart.items[existingIndex].totalPrice = cart.items[existingIndex].quantity * (cart.items[existingIndex].discountedPrice || cart.items[existingIndex].price);
+      } else {
+        cart.items.push({
+          product: productId,
+          quantity,
+          name: product.name,
+          price: product.price,
+          totalPrice: product.price * quantity,
+          thumbnail: product.images?.[0]?.url || "",
+          unit: product.unit
+        });
+      }
+
+      // recalc subtotal
+      // Note: Ideally we should fetch current prices to recalc subtotal to avoid stale prices
+      cart.subtotal = cart.items.reduce((sum, it) => sum + (it.totalPrice || 0), 0);
+      cart.updatedAt = new Date();
+      await cart.save();
+
+      await cart.populate({ path: "items.product", model: Product });
     }
 
-    // recalc subtotal
-    // Note: Ideally we should fetch current prices to recalc subtotal to avoid stale prices
-    cart.subtotal = cart.items.reduce((sum, it) => sum + (it.price || 0) * (it.quantity || 0), 0);
-    cart.updatedAt = new Date();
-    await cart.save();
+    // Format items consistent with GET
+    const formattedItems = cart.items
+      .filter(item => item.product)
+      .map((item) => {
+        const p = item.product;
+        return {
+          _id: item._id,
+          productId: p?._id?.toString(),
+          quantity: item.quantity,
+          product: {
+            _id: p?._id?.toString(),
+            name: p?.name,
+            price: p?.price,
+            unit: p?.unit,
+            images: p?.images || [],
+            image: p?.images?.[0]?.url || p?.image || "/images/placeholder-product.png",
+            stockQuantity: p?.stockQuantity,
+            gst: p?.gst,
+            supplier: p?.supplierId
+          },
+          price: p?.price,
+          discountedPrice: p?.discountedPrice
+        };
+      });
 
-    await cart.populate({ path: "items.productId", model: Product });
-
-    return NextResponse.json({ success: true, data: cart });
+    return NextResponse.json({
+      success: true,
+      data: {
+        userId,
+        items: formattedItems,
+        subtotal: cart.subtotal
+      }
+    });
   } catch (err) {
     const fs = require('fs');
     fs.appendFileSync('cart_debug.log', `[${new Date().toISOString()}] ERROR: ${err.message}\nStack: ${err.stack}\n`);
@@ -197,10 +237,10 @@ export async function PATCH(request) {
     const qty = typeof body.quantity !== "undefined" ? parseInt(body.quantity, 10) : null;
     if (qty != null && qty < 0) return NextResponse.json({ success: false, error: "Invalid quantity" }, { status: 400 });
 
-    const cart = await Cart.findOne({ userId });
+    const cart = await Cart.findOne({ customer: userId });
     if (!cart) return NextResponse.json({ success: false, error: "Cart not found" }, { status: 404 });
 
-    const idx = cart.items.findIndex(i => String(i.productId) === String(productId));
+    const idx = cart.items.findIndex(i => String(i.product) === String(productId));
     if (idx === -1) return NextResponse.json({ success: false, error: "Item not in cart" }, { status: 404 });
 
     if (qty === 0) {
@@ -212,18 +252,59 @@ export async function PATCH(request) {
         return NextResponse.json({ success: false, error: "Requested quantity exceeds available stock" }, { status: 400 });
       }
       cart.items[idx].quantity = qty;
+      cart.items[idx].totalPrice = cart.items[idx].quantity * (cart.items[idx].discountedPrice || cart.items[idx].price);
     } else if (body.increment) {
       cart.items[idx].quantity += 1;
+      cart.items[idx].totalPrice = cart.items[idx].quantity * (cart.items[idx].discountedPrice || cart.items[idx].price);
     } else if (body.decrement) {
       cart.items[idx].quantity = Math.max(1, cart.items[idx].quantity - 1);
+      cart.items[idx].totalPrice = cart.items[idx].quantity * (cart.items[idx].discountedPrice || cart.items[idx].price);
     } else {
       return NextResponse.json({ success: false, error: "No update action specified" }, { status: 400 });
     }
 
-    cart.subtotal = cart.items.reduce((sum, it) => sum + (it.price || 0) * (it.quantity || 0), 0);
+    cart.subtotal = cart.items.reduce((sum, it) => sum + (it.totalPrice || 0), 0);
     cart.updatedAt = new Date();
     await cart.save();
-    return NextResponse.json({ success: true, data: cart });
+
+    // Populate and format response consistent with GET/POST
+    await cart.populate({
+      path: "items.product",
+      model: Product,
+    });
+
+    const formattedItems = cart.items
+      .filter(item => item.product)
+      .map((item) => {
+        const p = item.product;
+        return {
+          _id: item._id,
+          productId: p?._id?.toString(),
+          quantity: item.quantity,
+          product: {
+            _id: p?._id?.toString(),
+            name: p?.name,
+            price: p?.price,
+            unit: p?.unit,
+            images: p?.images || [],
+            image: p?.images?.[0]?.url || p?.image || "/images/placeholder-product.png",
+            stockQuantity: p?.stockQuantity,
+            gst: p?.gst,
+            supplier: p?.supplierId
+          },
+          price: p?.price,
+          discountedPrice: p?.discountedPrice
+        };
+      });
+
+    return NextResponse.json({
+      success: true,
+      data: {
+        userId,
+        items: formattedItems,
+        subtotal: cart.subtotal
+      }
+    });
   } catch (err) {
     console.error("PATCH /api/cart error", err);
     return NextResponse.json({ success: false, error: err.message }, { status: 500 });
@@ -255,7 +336,7 @@ export async function DELETE(request) {
 
     const productId = body.productId || queryProduct;
 
-    const cart = await Cart.findOne({ userId });
+    const cart = await Cart.findOne({ customer: userId });
     if (!cart) return NextResponse.json({ success: true, data: { userId, items: [] } });
 
     if (!productId) {
@@ -263,8 +344,8 @@ export async function DELETE(request) {
       cart.items = [];
       cart.subtotal = 0;
     } else {
-      cart.items = cart.items.filter(i => String(i.productId) !== String(productId));
-      cart.subtotal = cart.items.reduce((sum, it) => sum + (it.price || 0) * (it.quantity || 0), 0);
+      cart.items = cart.items.filter(i => String(i.product) !== String(productId));
+      cart.subtotal = cart.items.reduce((sum, it) => sum + (it.totalPrice || 0), 0);
     }
 
     cart.updatedAt = new Date();

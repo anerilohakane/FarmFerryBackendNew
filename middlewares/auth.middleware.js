@@ -16,10 +16,15 @@ export const verifyJWT = async (token) => {
     }
 
     // Verify token
+    const secret = process.env.JWT_ACCESS_SECRET || "fallback_access_token_secret";
+    console.log("Middleware Auth - Secret Start:", secret.substring(0, 3));
+    console.log("Middleware Auth - Token Received:", token);
+
     const decodedToken = jwt.verify(
       token,
-      process.env.JWT_ACCESS_SECRET || "fallback_access_token_secret"
+      secret
     );
+    console.log("Token Decoded:", decodedToken);
 
 
     // Connect to database
@@ -41,23 +46,14 @@ export const verifyJWT = async (token) => {
     }
 
     if (!user) {
-      // If customer not found but token is valid, allow lazy creation downstream
-      if (decodedToken.role === 'customer' || !decodedToken.role) {
-        console.warn(`⚠️ [Auth] Customer ${decodedToken.id} not found in DB. Passing for lazy creation.`);
-        // Create a minimal user object from token data
-        user = {
-          _id: decodedToken.id,
-          role: 'customer',
-          isMissing: true
-        };
-      } else {
-        return { error: "Invalid token - User not found", statusCode: 401 };
-      }
+      console.log("User not found for ID:", decodedToken.id, "Role:", decodedToken.role);
+      return { error: "Invalid token - User not found", statusCode: 401 };
     }
 
     return { user, role: decodedToken.role };
   } catch (error) {
     if (error.name === "JsonWebTokenError") {
+      console.log("JWT Error:", error.message);
       return { error: "Invalid token", statusCode: 401 };
     }
     if (error.name === "TokenExpiredError") {

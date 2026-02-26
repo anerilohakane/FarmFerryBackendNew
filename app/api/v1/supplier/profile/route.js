@@ -91,6 +91,45 @@ export async function PUT(request) {
     if (gstNumber) updateFields.gstNumber = gstNumber;
     if (panNumber) updateFields.panNumber = panNumber;
 
+    // ✅ ADDRESS SUPPORT
+    if (body.address) {
+      // If address is provided, we merge it carefully or replace it
+      // For simplicity in a "Complete Profile Update", we often replace the sub-object
+      // But let's check if we should merge.
+      // Given Schema structure: address: { street, city... }
+      // It's safer to allow partial updates if we were doing patch, but this is partial update of the supplier.
+      // We will accept the full address object or partial fields if the client sends them in an object.
+      // However, to avoid overwriting with nulls, we only set if provided.
+      // The easiest way for a "complete api" is to allow the user to send an address object.
+
+      const { street, city, state, postalCode, country, landmark, coordinates } = body.address;
+
+      // We construct the address object ensuring we don't lose data if we only want to update some fields,
+      // BUT existing logic in sub-routes suggests full replacement or specific field updates.
+      // To work with $set and dot notation for nested fields is complex if not flattening.
+      // So we will replace the address object if provided, but maybe we should use dot notation?
+      // Mongoose $set: { "address.street": ... } works best.
+
+      if (street) updateFields["address.street"] = street;
+      if (city) updateFields["address.city"] = city;
+      if (state) updateFields["address.state"] = state;
+      if (postalCode) updateFields["address.postalCode"] = postalCode;
+      if (country) updateFields["address.country"] = country;
+      if (landmark) updateFields["address.landmark"] = landmark;
+      // Coordinates might be an object
+      if (coordinates) updateFields["address.coordinates"] = coordinates;
+    }
+
+    // ✅ BANK DETAILS SUPPORT
+    if (body.bankDetails) {
+      const { accountHolderName, bankName, accountNumber, ifscCode, branchName } = body.bankDetails;
+      if (accountHolderName) updateFields["bankDetails.accountHolderName"] = accountHolderName;
+      if (bankName) updateFields["bankDetails.bankName"] = bankName;
+      if (accountNumber) updateFields["bankDetails.accountNumber"] = accountNumber;
+      if (ifscCode) updateFields["bankDetails.ifscCode"] = ifscCode;
+      if (branchName) updateFields["bankDetails.branchName"] = branchName;
+    }
+
     // ✅ DOCUMENTS SUPPORT
     if (Array.isArray(documents)) {
       updateFields.documents = documents;

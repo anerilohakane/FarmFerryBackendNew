@@ -86,58 +86,70 @@ const reviewSchema = new mongoose.Schema(
 // Compound index to ensure a customer can only review a product once
 reviewSchema.index({ product: 1, customer: 1 }, { unique: true });
 
-// Middleware to update product ratings after saving a review
-reviewSchema.post("save", async function() {
-  const Product = mongoose.model("Product");
-  
-  // Find the product
-  const product = await Product.findById(this.product);
-  
-  if (!product) return;
-  
-  // Find all visible reviews for this product
-  const reviews = await this.constructor.find({ 
-    product: this.product,
-    isVisible: true
-  });
-  
-  // Calculate new average rating
-  const totalRating = reviews.reduce((sum, review) => sum + review.rating, 0);
-  const averageRating = reviews.length > 0 ? totalRating / reviews.length : 0;
-  
-  // Update product
-  await Product.findByIdAndUpdate(this.product, {
-    averageRating: parseFloat(averageRating.toFixed(1)),
-    totalReviews: reviews.length
-  });
-});
+// Prevent double registration of hooks if model already exists
+if (!mongoose.models.Review) {
+  // Middleware to update product ratings after saving a review
+  reviewSchema.post("save", async function () {
+    try {
+      const Product = mongoose.model("Product");
 
-// Middleware to update product ratings after removing a review
-reviewSchema.post("remove", async function() {
-  const Product = mongoose.model("Product");
-  
-  // Find the product
-  const product = await Product.findById(this.product);
-  
-  if (!product) return;
-  
-  // Find all visible reviews for this product
-  const reviews = await this.constructor.find({ 
-    product: this.product,
-    isVisible: true
-  });
-  
-  // Calculate new average rating
-  const totalRating = reviews.reduce((sum, review) => sum + review.rating, 0);
-  const averageRating = reviews.length > 0 ? totalRating / reviews.length : 0;
-  
-  // Update product
-  await Product.findByIdAndUpdate(this.product, {
-    averageRating: parseFloat(averageRating.toFixed(1)),
-    totalReviews: reviews.length
-  });
-});
+      // Find the product
+      const product = await Product.findById(this.product);
 
-const Review = mongoose.model("Review", reviewSchema);
+      if (!product) return;
+
+      // Find all visible reviews for this product
+      // Use this.constructor to refer to the model
+      const reviews = await this.constructor.find({
+        product: this.product,
+        isVisible: true
+      });
+
+      // Calculate new average rating
+      const totalRating = reviews.reduce((sum, review) => sum + review.rating, 0);
+      const averageRating = reviews.length > 0 ? totalRating / reviews.length : 0;
+
+      // Update product
+      await Product.findByIdAndUpdate(this.product, {
+        averageRating: parseFloat(averageRating.toFixed(1)),
+        totalReviews: reviews.length
+      });
+    } catch (err) {
+      console.error("Error in Review post-save hook:", err);
+    }
+  });
+
+  // Middleware to update product ratings after removing a review
+  reviewSchema.post("remove", async function () {
+    try {
+      const Product = mongoose.model("Product");
+
+      // Find the product
+      const product = await Product.findById(this.product);
+
+      if (!product) return;
+
+      // Find all visible reviews for this product
+      const reviews = await this.constructor.find({
+        product: this.product,
+        isVisible: true
+      });
+
+      // Calculate new average rating
+      const totalRating = reviews.reduce((sum, review) => sum + review.rating, 0);
+      const averageRating = reviews.length > 0 ? totalRating / reviews.length : 0;
+
+      // Update product
+      await Product.findByIdAndUpdate(this.product, {
+        averageRating: parseFloat(averageRating.toFixed(1)),
+        totalReviews: reviews.length
+      });
+    } catch (err) {
+      console.error("Error in Review post-remove hook:", err);
+    }
+  });
+}
+
+const Review = mongoose.models.Review || mongoose.model("Review", reviewSchema);
 
 export default Review;

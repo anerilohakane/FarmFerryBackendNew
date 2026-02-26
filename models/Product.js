@@ -63,6 +63,9 @@ const productSchema = new Schema(
     offerEndDate: Date,
     hasActiveOffer: { type: Boolean, default: false },
 
+    averageRating: { type: Number, default: 0, min: 0, max: 5 },
+    totalReviews: { type: Number, default: 0 },
+
     isActive: { type: Boolean, default: true },
   },
   { timestamps: true }

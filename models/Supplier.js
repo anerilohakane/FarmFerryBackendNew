@@ -1,33 +1,34 @@
- import mongoose from "mongoose";
-import bcrypt from "bcrypt";
+import mongoose from "mongoose";
+import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 
 const supplierSchema = new mongoose.Schema(
   {
-    businessName: { 
-      type: String, 
+    businessName: {
+      type: String,
       // required: [true, "Business name is required"],   
-      trim: true 
+      trim: true
     },
-    ownerName: { 
-      type: String, 
+    ownerName: {
+      type: String,
       // required: [true, "Owner name is required"],
-      trim: true 
+      trim: true
     },
-    email: { 
-      type: String, 
-      required: [true, "Email is required"], 
-      unique: true, 
+    email: {
+      type: String,
+      required: [true, "Email is required"],
+      unique: true,
       lowercase: true,
       trim: true,
       match: [/^\S+@\S+\.\S+$/, 'Please enter a valid email address']
     },
-    password: { 
-      type: String, 
+    password: {
+      type: String,
       required: [true, "Password is required"],
-      minlength: [6, "Password must be at least 6 characters long"]
+      minlength: [6, "Password must be at least 6 characters long"],
+      select: false
     },
-    phone: { 
+    phone: {
       type: String,
       // required: [true, "Phone number is required"]
     },
@@ -37,51 +38,59 @@ const supplierSchema = new mongoose.Schema(
     },
 
     // Business Details
-    businessType: { 
+    businessType: {
       type: String,
       enum: ["farmer", "wholesaler", "retailer", "processor", "other", "Agriculture"],
       // required: [true, "Business type is required"]
     },
-    shopName: { 
+    shopName: {
       type: String,
-      trim: true 
+      trim: true
     },
-    gstNumber: { 
+    gstNumber: {
       type: String,
-      trim: true 
+      trim: true
     },
-    panNumber: { 
+    panNumber: {
       type: String,
-      trim: true 
+      trim: true
     },
 
     // Address Details
     address: {
-      street: { 
+      street: {
         type: String,
         // required: [true, "Street address is required"],
-        trim: true 
+        trim: true
       },
-      city: { 
+      city: {
         type: String,
         // required: [true, "City is required"],
-        trim: true 
+        trim: true
       },
-      state: { 
+      state: {
         type: String,
         // required: [true, "State is required"],
-        trim: true 
+        trim: true
       },
-      country: { 
+      country: {
         type: String,
         // required: [true, "Country is required"],
-        trim: true 
+        trim: true
       },
-      postalCode: { 
+      postalCode: {
         type: String,
-        // required: [true, "Postal code .....is required"],
-        trim: true 
+        // required: [true, "Postal code is required"],
+        trim: true
       },
+      landmark: {
+        type: String,
+        trim: true
+      },
+      coordinates: {
+        lat: Number,
+        lng: Number
+      }
     },
 
     // Bank Details
@@ -90,32 +99,33 @@ const supplierSchema = new mongoose.Schema(
       bankName: { type: String },
       accountNumber: { type: String },
       ifscCode: { type: String },
+      branchName: { type: String }
     },
 
     documents: { type: Array, default: [] },
     // Verification Status
-    status: { 
-      type: String, 
-      enum: ["pending", "approved", "rejected", "active", "inactive", "blocked"], 
-      default: "pending" 
+    status: {
+      type: String,
+      enum: ["pending", "approved", "rejected", "active", "inactive", "blocked"],
+      default: "pending"
     },
-    verificationNotes: { 
-      type: String 
+    verificationNotes: {
+      type: String
     },
-    verifiedAt: { 
-      type: Date 
+    verifiedAt: {
+      type: Date
     },
-    verifiedBy: { 
-      type: mongoose.Schema.Types.ObjectId, 
-      ref: "Admin" 
+    verifiedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Admin"
     },
 
     // Password Reset
-    passwordResetToken: { 
-      type: String 
+    passwordResetToken: {
+      type: String
     },
-    passwordResetExpires: { 
-      type: Date 
+    passwordResetExpires: {
+      type: Date
     },
 
     // Phone Verification
@@ -133,19 +143,68 @@ const supplierSchema = new mongoose.Schema(
     // Performance & Activity
     totalOrders: {
       type: Number,
-      default: 0 
+      default: 0
     },
-    totalRevenue: { 
-      type: Number, 
-      default: 0 
+    totalRevenue: {
+      type: Number,
+      default: 0
     },
-    lastLogin: { 
-      type: Date 
-    }
+    lastLogin: {
+      type: Date
+    },
+    // Payout Requests
+    payoutRequests: [
+      {
+        amount: { type: Number, required: true },
+        status: { type: String, enum: ['pending', 'approved', 'rejected', 'processed'], default: 'pending' },
+        requestedAt: { type: Date, default: Date.now },
+        processedAt: { type: Date },
+        adminNote: { type: String },
+        method: { type: String },
+        transactionId: { type: String }
+      }
+    ]
   },
   { timestamps: true }
 );
 
+
+/* ---------------------------------
+   Hash password before save
+---------------------------------- */
+supplierSchema.pre("save", async function () {
+  if (!this.isModified("password")) return;
+  this.password = await bcrypt.hash(this.password, 10);
+});
+
+/* ---------------------------------
+   Compare password
+---------------------------------- */
+supplierSchema.methods.isPasswordCorrect = async function (password) {
+  return await bcrypt.compare(password, this.password);
+};
+
+/* ---------------------------------
+   Generate JWT
+---------------------------------- */
+supplierSchema.methods.generateAccessToken = function () {
+  return jwt.sign(
+    { id: this._id, role: this.role },
+    process.env.JWT_ACCESS_SECRET || "fallback_access_token_secret",
+    { expiresIn: process.env.JWT_ACCESS_EXPIRY || "1d" }
+  );
+};
+
+/* ---------------------------------
+   Generate Refresh Token
+---------------------------------- */
+supplierSchema.methods.generateRefreshToken = function () {
+  return jwt.sign(
+    { id: this._id },
+    process.env.REFRESH_TOKEN_SECRET || "fallback_refresh_token_secret",
+    { expiresIn: process.env.REFRESH_TOKEN_EXPIRY || "7d" }
+  );
+};
 
 // Prevent model overwrite error in development
 if (mongoose.models.Supplier) {
@@ -154,77 +213,5 @@ if (mongoose.models.Supplier) {
 
 const Supplier = mongoose.model("Supplier", supplierSchema);
 
-export default Supplier;
-
-// import mongoose from "mongoose";
-// import bcrypt from "bcrypt";
-// import jwt from "jsonwebtoken";
-
-// const supplierSchema = new mongoose.Schema(
-//   {
-//     businessName: { type: String, trim: true },
-//     ownerName: { type: String, trim: true },
-
-//     email: {
-//       type: String,
-//       required: true,
-//       unique: true,
-//       lowercase: true,
-//       trim: true
-//     },
-
-//     password: {
-//       type: String,
-//       required: true,
-//       minlength: 6,
-//       select: false   // 🔐 IMPORTANT
-//     },
-
-//     phone: String,
-
-//     role: {
-//       type: String,
-//       default: "supplier"
-//     },
-
-//     status: {
-//       type: String,
-//       enum: ["pending", "approved", "rejected", "active", "inactive", "blocked"],
-//       default: "pending"
-//     },
-
-//     lastLogin: Date
-//   },
-//   { timestamps: true }
-// );
-
-// /* ---------------------------------
-//    Hash password before save
-// ---------------------------------- */
-// supplierSchema.pre("save", async function (next) {
-//   if (!this.isModified("password")) return next();
-//   this.password = await bcrypt.hash(this.password, 10);
-//   next();
-// });
-
-// /* ---------------------------------
-//    Compare password
-// ---------------------------------- */
-// supplierSchema.methods.isPasswordCorrect = async function (password) {
-//   return await bcrypt.compare(password, this.password);
-// };
-
-// /* ---------------------------------
-//    Generate JWT
-// ---------------------------------- */
-// supplierSchema.methods.generateAccessToken = function () {
-//   return jwt.sign(
-//     { id: this._id, role: this.role },
-//     process.env.JWT_ACCESS_SECRET,,
-//     { expiresIn: "1d" }
-//   );
-// };
-
-// // Prevent model overwrite
-// export default mongoose.models.Supplier ||
-//   mongoose.model("Supplier", supplierSchema);
+// Prevent model overwrite
+export default mongoose.models.Supplier || Supplier;
