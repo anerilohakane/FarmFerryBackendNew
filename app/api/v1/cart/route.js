@@ -240,16 +240,32 @@ export async function PATCH(request) {
     if (!cart) return NextResponse.json({ success: false, error: "Cart not found" }, { status: 404 });
 
     const idx = cart.items.findIndex(i => String(i.product) === String(productId));
-    if (product && product.stockQuantity != null && qty > product.stockQuantity) {
-      return NextResponse.json({ success: false, error: "Requested quantity exceeds available stock" }, { status: 400 });
+    if (idx === -1) return NextResponse.json({ success: false, error: "Item not in cart" }, { status: 404 });
+
+    const product = await Product.findById(productId).lean();
+
+    if (qty != null) {
+      if (product && product.stockQuantity != null && qty > product.stockQuantity) {
+        return NextResponse.json({ success: false, error: "Requested quantity exceeds available stock" }, { status: 400 });
+      }
+      if (qty === 0) {
+        cart.items.splice(idx, 1);
+      } else {
+        cart.items[idx].quantity = qty;
+        cart.items[idx].totalPrice = cart.items[idx].quantity * (cart.items[idx].discountedPrice || cart.items[idx].price);
+      }
+    } else if (body.increment) {
+      if (product && product.stockQuantity != null && cart.items[idx].quantity + 1 > product.stockQuantity) {
+        return NextResponse.json({ success: false, error: "Requested quantity exceeds available stock" }, { status: 400 });
+      }
+      cart.items[idx].quantity += 1;
+      cart.items[idx].totalPrice = cart.items[idx].quantity * (cart.items[idx].discountedPrice || cart.items[idx].price);
+    } else if (body.decrement) {
+      cart.items[idx].quantity = Math.max(1, cart.items[idx].quantity - 1);
+      cart.items[idx].totalPrice = cart.items[idx].quantity * (cart.items[idx].discountedPrice || cart.items[idx].price);
     }
-    cart.items[idx].quantity = qty;
-    cart.items[idx].totalPrice = cart.items[idx].quantity * (cart.items[idx].discountedPrice || cart.items[idx].price);
-  } else if (body.increment) {
-    cart.items[idx].quantity += 1;
-    cart.items[idx].totalPrice = cart.items[idx].quantity * (cart.items[idx].discountedPrice || cart.items[idx].price);
-  } else if (body.decrement) {
-    cart.items[idx].quantity = Math.max(1, cart.items[idx].quantity - 1);
+
+    cart.subtotal = cart.items.reduce((sum, it) => sum + (it.totalPrice || 0), 0);
     cart.updatedAt = new Date();
     await cart.save();
 
